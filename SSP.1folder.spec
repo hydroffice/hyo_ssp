@@ -1,5 +1,12 @@
 # -*- mode: python -*-
 from PyInstaller import is_win, is_darwin
+from PyInstaller.building.datastruct import Tree
+from PyInstaller.building.build_main import Analysis, PYZ, EXE, COLLECT, BUNDLE
+
+import mpl_toolkits.basemap
+import os
+import sys
+
 
 exe_file = 'SSP.out'
 if is_win:
@@ -11,29 +18,52 @@ icon_file = 'SSP.ico'
 if is_darwin:
     icon_file = 'SSP.icns'
 
+# basemap data
+src_basemap_data = os.path.join(mpl_toolkits.basemap.__path__[0], "data")
+tgt_basemap_data = os.path.join('mpl_toolkits', 'basemap', 'data')
+basemap_tree = Tree(src_basemap_data, prefix=tgt_basemap_data)
+
+# gdal data (conda specific)
+#src_gdal_data = os.path.join(os.path.dirname(sys.executable), 'lib', 'site-packages', 'osgeo', 'data', 'gdal')
+src_gdal_data = os.path.join(os.path.dirname(sys.executable), 'Library', 'data')
+tgt_gdal_data = os.path.join('Library', 'data')
+gdal_tree = Tree(src_gdal_data, prefix=tgt_gdal_data)
+src_prj_dll = os.path.join(os.path.dirname(sys.executable), 'proj.dll')
+if not os.path.exists(src_prj_dll):
+    raise RuntimeError(src_prj_dll)
+prj_tree = [
+    ('proj.dll', src_prj_dll, 'BINARY'),
+]
+
+# hydro-package data
+media_tree = Tree('hydroffice/ssp/gui/media', prefix='hydroffice/ssp/gui/media')
+manual_tree = Tree('hydroffice/ssp/docs', prefix='hydroffice/ssp/docs', excludes=['*.docx',])
+pkg_data = [
+    ('hydroffice/ssp/config.ini', 'hydroffice/ssp/config.ini', 'DATA'),
+    ('hydroffice/ssp/oldgui/ccom.png', 'hydroffice/ssp/oldgui/ccom.png', 'DATA'),
+    ('hydroffice/ssp/oldgui/favicon.ico', 'hydroffice/ssp/oldgui/favicon.ico', 'DATA')
+]
+
+# run the analysis
 block_cipher = None
-
-patch_libs = []
-if is_darwin:
-    import os
-    lib_path = os.path.abspath(os.path.join(os.path.dirname(os.__file__), os.pardir))
-    patch_libs = [('libpng16.16.dylib', os.path.join(lib_path, 'libpng16.16.dylib'), 'BINARY'),
-                  ('libQtGui.4.dylib', os.path.join(lib_path, 'libQtGui.4.8.6.dylib'), 'BINARY')]
-
-
 a = Analysis(['SSP.py'],
-             pathex=[''],
+             pathex=[],
              binaries=None,
              datas=None,
-             hiddenimports=['pkg_resources'],
+             hiddenimports=['netCDF4.utils', 'netcdftime'],
              hookspath=None,
              runtime_hooks=None,
              excludes=None,
              win_no_prefer_redirects=None,
              win_private_assemblies=None,
              cipher=block_cipher)
-media_tree = Tree('hydroffice/ssp/gui/media', prefix='hydroffice/ssp/gui/media')
-manual_tree = Tree('hydroffice/ssp/docs', prefix='hydroffice/ssp/docs', excludes=['*.docx',])
+
+for d in a.binaries:
+    if "system32\\pywintypes34.dll" in d[1]:
+        a.binaries.remove(d)
+    if "system32\\pywintypes27.dll" in d[1]:
+        a.binaries.remove(d)
+
 pyz = PYZ(a.pure, a.zipped_data,
              cipher=block_cipher)
 exe = EXE(pyz,
@@ -48,9 +78,12 @@ coll = COLLECT(exe,
                a.binaries,
                a.zipfiles,
                a.datas,
-          	   media_tree,
+               pkg_data,
+               basemap_tree,
+               gdal_tree,
+               # prj_tree,
+               media_tree,
                manual_tree,
-               patch_libs,
                strip=None,
                upx=True,
                name='SSP')

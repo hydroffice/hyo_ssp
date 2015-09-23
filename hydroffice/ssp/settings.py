@@ -2,9 +2,10 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import datetime
 import os
+import shutil
 
 from .ssp_dicts import Dicts
-from .helper import SspError
+from .helper import SspError, Helper
 from .pkg_clients import PkgClientList
 from .atlases import woa09checker
 
@@ -94,9 +95,18 @@ class Settings(object):
     def load_config(self):
         """read the configuration info present in the settings file"""
 
-        # read the whole settings file
         ini_file = 'config.ini'
-        ini_path = os.path.join(self.here, ini_file)
+
+        # check if the config.ini exists in the user application folder
+        user_folder = Helper.default_projects_folder()
+        ini_path = os.path.join(user_folder, ini_file)
+        if not os.path.exists(ini_path):
+            original_ini_path = os.path.join(self.here, ini_file)
+            if not os.path.exists(original_ini_path):
+                raise SspError("unable to find original settings at %s" % original_ini_path)
+            shutil.copyfile(original_ini_path, ini_path)
+
+        # read the whole settings file
         try:
             infile = open(ini_path, 'r')
             ini_content = infile.read()
