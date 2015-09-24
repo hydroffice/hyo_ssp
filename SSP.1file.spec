@@ -1,7 +1,7 @@
 # -*- mode: python -*-
 from PyInstaller import is_win, is_darwin
-from PyInstaller.building.datastruct import Tree
-from PyInstaller.building.build_main import Analysis, PYZ, EXE, COLLECT, BUNDLE
+#from PyInstaller.building.datastruct import Tree
+#from PyInstaller.building.build_main import Analysis, PYZ, EXE, COLLECT, BUNDLE
 
 import mpl_toolkits.basemap
 import os
@@ -47,17 +47,17 @@ pkg_data = [
 # run the analysis
 block_cipher = None
 a = Analysis(['SSP.py'],
-             pathex=[],
-             #pathex=['C:\\hyo_dev\\_ssp'],
-             binaries=None,
-             datas=None,
+             pathex=['C:\\hyo_dev\\_base'],
+             #binaries=None,
+             #datas=None,
              hiddenimports=['netCDF4.utils', 'netcdftime'],
              hookspath=None,
              runtime_hooks=None,
              excludes=None,
-             win_no_prefer_redirects=None,
-             win_private_assemblies=None,
-             cipher=block_cipher)
+             #win_no_prefer_redirects=None,
+             #win_private_assemblies=None,
+             #cipher=block_cipher
+             )
 
 for d in a.binaries:
     if "system32\\pywintypes34.dll" in d[1]:
@@ -73,8 +73,16 @@ for d in a.binaries:
 # a.binaries = [x for x in a.binaries if not x[0].startswith("PyQt4")]
 # a.binaries = [x for x in a.binaries if not x[0].startswith("pywintype27")]
 
-pyz = PYZ(a.pure, a.zipped_data,
-             cipher=block_cipher)
+# The following block is necessary to prevent a hard crash when launching
+# the resulting .exe file
+for d in a.datas:
+    if 'pyconfig' in d[0]:
+        a.datas.remove(d)
+        break
+
+pyz = PYZ(a.pure, #a.zipped_data,
+             #cipher=block_cipher
+             )
 exe = EXE(pyz,
           a.scripts,
           a.binaries,
@@ -83,7 +91,7 @@ exe = EXE(pyz,
           pkg_data,
           basemap_tree,
           gdal_tree,
-          # prj_tree,
+          prj_tree,
           media_tree,
           manual_tree,
           name=exe_file,

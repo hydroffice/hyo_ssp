@@ -38,8 +38,6 @@ class Project(project.Project):
 
         self.verbose_config = verbose_config
         self.callback_debug_print = callback_debug_print
-        if self.callback_debug_print:
-            self.print_info("project init")
         self.log_db = SspLogDb()
 
         self.server = Server(self)
@@ -140,7 +138,7 @@ class Project(project.Project):
 
         # timer to monitor for MVP sensor input
         self.mvp_sensors_timer = TimerThread(self._monitor_mvp_sensors, timing=1.5)
-        #self.mvp_sensors_timer.start()
+        # self.mvp_sensors_timer.start()
 
     def open_file_format(self, filename, input_format, callback_date=None, callback_pos=None):
         filename_prefix = os.path.splitext(filename)[0]
@@ -356,7 +354,7 @@ class Project(project.Project):
         self.km_listener.stop_listen()
         self.sippican_listener.stop_listen()
         self.mvp_listener.stop_listen()
-        #self.mvp_controller.stop_listen()
+        # self.mvp_controller.stop_listen()
 
     def has_running_listeners(self):
         """check if all listeners are running"""

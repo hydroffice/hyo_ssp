@@ -7,7 +7,8 @@ from io import open
 from PySide import QtGui
 from PySide import QtCore
 
-from ...base.gui import controlpanel
+from hydroffice.base.gui.base import controlpanel
+
 from ..helper import Helper
 from ..plot import widget
 
@@ -23,8 +24,7 @@ class ControlPanel(controlpanel.ControlPanel):
 
         self.init_ui()
 
-    ##################################################################################
-    ################################# gui building ###################################
+    # ################################ gui building ###################################
 
     def init_ui(self):
         """
@@ -45,11 +45,9 @@ class ControlPanel(controlpanel.ControlPanel):
         """
         pass
 
-    ##################################################################################
-    ################################# action slots ###################################
+    # ################################ action slots ###################################
 
-    ##################################################################################
-    #################################### cleaning ####################################
+    # ################################### cleaning ####################################
 
     def clean_project(self):
         """clean up the project"""

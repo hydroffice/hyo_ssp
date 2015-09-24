@@ -1,4 +1,4 @@
-from __future__ import absolute_import, division, print_function
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import os
 
@@ -7,8 +7,8 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt4agg import FigureCanvas
 from matplotlib import rcParams
 
-from ...base import gui  # for the base folder
-from ...base.gui.gui_settings import GuiSettings
+from hydroffice.base import gui  # for the base folder
+from hydroffice.base.gui.base.gui_settings import GuiSettings
 
 
 class WdgMenu(object):
@@ -123,8 +123,8 @@ class Widget(QtGui.QMainWindow):
 
         self.m.interaction.zoom_action = ag.addAction(QtGui.QAction('&Zoom', self, checkable=True))
         icon = QtGui.QIcon()
-        icon.addPixmap(self.here + '/media/zoom.png', state=QtGui.QIcon.On)
-        icon.addPixmap(self.here + '/media/zoom_disabled.png', state=QtGui.QIcon.Off)
+        icon.addPixmap(QtGui.QPixmap(os.path.join(self.here, 'media', 'zoom.png')), state=QtGui.QIcon.On)
+        icon.addPixmap(QtGui.QPixmap(os.path.join(self.here, 'media', 'zoom_disabled.png')), state=QtGui.QIcon.Off)
         self.m.interaction.zoom_action.setIcon(icon)
         self.m.interaction.zoom_action.setIconVisibleInMenu(False)
         self.m.interaction.zoom_action.setShortcut('Ctrl+Z')
@@ -137,8 +137,8 @@ class Widget(QtGui.QMainWindow):
 
         self.m.interaction.flag_action = ag.addAction(QtGui.QAction('&Flag', self, checkable=True))
         icon = QtGui.QIcon()
-        icon.addPixmap(self.here + '/media/flag.png', state=QtGui.QIcon.On)
-        icon.addPixmap(self.here + '/media/flag_disabled.png', state=QtGui.QIcon.Off)
+        icon.addPixmap(QtGui.QPixmap(os.path.join(self.here, 'media', 'flag.png')), state=QtGui.QIcon.On)
+        icon.addPixmap(QtGui.QPixmap(os.path.join(self.here, 'media', 'flag_disabled.png')), state=QtGui.QIcon.Off)
         self.m.interaction.flag_action.setIcon(icon)
         self.m.interaction.flag_action.setIconVisibleInMenu(False)
         self.m.interaction.flag_action.setShortcut('Ctrl+F')
@@ -149,8 +149,8 @@ class Widget(QtGui.QMainWindow):
 
         self.m.interaction.unflag_action = ag.addAction(QtGui.QAction('&Unflag', self, checkable=True))
         icon = QtGui.QIcon()
-        icon.addPixmap(self.here + '/media/unflag.png', state=QtGui.QIcon.On)
-        icon.addPixmap(self.here + '/media/unflag_disabled.png', state=QtGui.QIcon.Off)
+        icon.addPixmap(QtGui.QPixmap(os.path.join(self.here, 'media', 'unflag.png')), state=QtGui.QIcon.On)
+        icon.addPixmap(QtGui.QPixmap(os.path.join(self.here, 'media', 'unflag_disabled.png')), state=QtGui.QIcon.Off)
         self.m.interaction.unflag_action.setIcon(icon)
         self.m.interaction.unflag_action.setIconVisibleInMenu(False)
         self.m.interaction.unflag_action.setShortcut('Ctrl+U')
@@ -161,8 +161,8 @@ class Widget(QtGui.QMainWindow):
 
         self.m.interaction.insert_action = ag.addAction(QtGui.QAction('&Insert', self, checkable=True))
         icon = QtGui.QIcon()
-        icon.addPixmap(self.here + '/media/insert.png', state=QtGui.QIcon.On)
-        icon.addPixmap(self.here + '/media/insert_disabled.png', state=QtGui.QIcon.Off)
+        icon.addPixmap(QtGui.QPixmap(os.path.join(self.here, 'media', 'insert.png')), state=QtGui.QIcon.On)
+        icon.addPixmap(QtGui.QPixmap(os.path.join(self.here, 'media', 'insert_disabled.png')), state=QtGui.QIcon.Off)
         self.m.interaction.insert_action.setIcon(icon)
         self.m.interaction.insert_action.setIconVisibleInMenu(False)
         self.m.interaction.insert_action.setShortcut('Ctrl+I')

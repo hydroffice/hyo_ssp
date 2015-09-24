@@ -1,9 +1,14 @@
-from __future__ import absolute_import, division, print_function
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import os
 from PySide import QtGui
 from PySide import QtCore
 
+from hydroffice.base.gui.base import template
+from hydroffice.base.gui.base.gui_settings import GuiSettings
+
+from . import mainmenu
+from . import controlpanel
 from .. import __doc__
 from .. import __version__
 from .. import __name__
@@ -11,11 +16,6 @@ from .. import __author__
 from .. import __license__
 from ..helper import Helper, SspError
 from ..project import Project
-from ...base.gui import template
-
-from . import mainmenu
-from ...base.gui.gui_settings import GuiSettings
-from . import controlpanel
 
 
 class MainWin(template.MainWin):
