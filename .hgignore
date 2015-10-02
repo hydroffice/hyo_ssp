@@ -4,6 +4,7 @@ syntax: glob
 __pycache__/
 *.pyc
 *.pyo
+.cache/
 
 # coverage files
 .coverage

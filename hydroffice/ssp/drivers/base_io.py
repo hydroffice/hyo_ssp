@@ -2,8 +2,8 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 from abc import ABCMeta, abstractmethod
 
+from hydroffice.base.base_objects import BaseObject
 from ..helper import SspError
-from ...base.base_objects import BaseObject
 
 
 class IoError(SspError):
