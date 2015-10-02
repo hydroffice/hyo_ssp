@@ -1,0 +1,27 @@
+import castaway_datagrams
+import svp
+
+filename='10M100491_20120222_070924_cast_away.csv'
+file=open(filename,'r')
+data=file.read()
+file.close()
+dg = castaway_datagrams.castaway_datagram(data)
+#sv = dg.convert_ssp()
+#sv.make_plot()
+
+print " "
+
+filename='10G100412_20111106_203824.csv'
+file=open(filename,'r')
+data=file.read()
+file.close()
+
+dg = castaway_datagrams.castaway_datagram(data)
+#sv = dg.convert_ssp()
+#sv.make_plot()
+
+
+sv = svp.SV()
+
+sv.read_castaway(filename)
+sv.make_plot()
