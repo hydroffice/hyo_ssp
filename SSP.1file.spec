@@ -46,6 +46,7 @@ if is_darwin:
 a = Analysis(['SSP.py'],
              pathex=[],
              hiddenimports=[],
+             excludes=["PySide", "pandas"],
              hookspath=None,
              runtime_hooks=None)
 
