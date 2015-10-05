@@ -20,10 +20,3 @@ class TestProject(object):
         self.prj.set_output_folder(test_dir)
         assert self.prj.get_output_folder() == test_dir
 
-    def test_setting_getting_verbose(self):
-        flag = True
-        self.prj.set_verbose(flag)
-        assert self.prj.get_verbose() == flag
-        flag = False
-        self.prj.set_verbose(flag)
-        assert self.prj.get_verbose() == flag

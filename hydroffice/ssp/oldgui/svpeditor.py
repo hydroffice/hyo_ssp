@@ -1639,14 +1639,11 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
         """Activate the logging of the processing metadata"""
         flag = self.ProcessLogMetadata.IsChecked()
 
-        # TODO: manage to use SQLite Handler
         # to be able to log the first and the last message
         if flag:
-            self.prj.s.log_processing_metadata = flag
-            log.info("START logging of processing metadata")
+            self.prj.activate_logging_on_db()
         else:
-            log.info("END logging of processing metadata")
-            self.prj.s.log_processing_metadata = flag
+            self.prj.deactivate_logging_on_db()
 
     # def on_process_express_mode(self, evt):
     # """DISABLED SINCE USERS TEND TO MISUSE THIS FUNCTIONALITY"""
@@ -2038,14 +2035,10 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
         """Activate the logging of the server metadata"""
         flag = self.ServerLogMetadata.IsChecked()
 
-        # to be able to log the first and the last message
-        # TODO: manage to add sqlite handler
         if flag:
-            self.prj.s.log_server_metadata = flag
-            log.info("START logging of server metadata")
+            self.prj.activate_server_logging_on_db()
         else:
-            log.info("END logging of server metadata")
-            self.prj.s.log_server_metadata = flag
+            self.prj.deactivate_server_logging_on_db()
 
     # ### REF CAST ###
 

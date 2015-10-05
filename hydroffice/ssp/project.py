@@ -9,6 +9,7 @@ import logging
 log = logging.getLogger(__name__)
 
 from hydroffice.base import project
+from hydroffice.base.logging_sqlite import SQLiteHandler
 from hydroffice.base.timerthread import TimerThread
 
 from .server import Server
@@ -25,6 +26,22 @@ from .atlases import woa09
 from .atlases import rtofs
 
 
+class ServerFilter(logging.Filter):
+    def filter(self, record):
+        # print(record.name, record.levelname)
+        if record.name.startswith('hydroffice.ssp.server'):
+            return True
+        return False
+
+
+class NotServerFilter(logging.Filter):
+    def filter(self, record):
+        # print(record.name, record.levelname)
+        if record.name.startswith('hydroffice.ssp.server'):
+            return False
+        return True
+
+
 class Project(project.Project):
     """ SSP project """
 
@@ -32,6 +49,14 @@ class Project(project.Project):
 
     def __init__(self, with_listeners=True, with_woa09=True, with_rtofs=True):
         super(Project, self).__init__(Helper.default_projects_folder())
+
+        self.log_sh = SQLiteHandler(db=os.path.join(Helper.default_projects_folder(), "__log__.db"))
+        self.log_sh.setLevel(logging.DEBUG)
+        self.log_sh.addFilter(NotServerFilter())
+
+        self.log_server_sh = SQLiteHandler(db=os.path.join(Helper.default_projects_folder(), "__server_log__.db"))
+        self.log_server_sh.setLevel(logging.DEBUG)
+        self.log_server_sh.addFilter(ServerFilter())
 
         self.server = Server(self)
         self.with_listeners = with_listeners
@@ -503,6 +528,26 @@ class Project(project.Project):
             if self.s.export_formats[fmt]:
                 num_formats_to_export += 1
         return num_formats_to_export
+
+    def activate_logging_on_db(self):
+        self.s.log_processing_metadata = True
+        logging.getLogger().addHandler(self.log_sh)
+        log.info("START logging of processing metadata")
+
+    def deactivate_logging_on_db(self):
+        self.s.log_processing_metadata = False
+        log.info("END logging of processing metadata")
+        logging.getLogger().removeHandler(self.log_sh)
+
+    def activate_server_logging_on_db(self):
+        self.s.log_server_metadata = True
+        logging.getLogger().addHandler(self.log_server_sh)
+        log.info("START logging of server metadata")
+
+    def deactivate_server_logging_on_db(self):
+        self.s.log_server_metadata = False
+        log.info("END logging of server metadata")
+        logging.getLogger().removeHandler(self.log_server_sh)
 
     # ########### SIS ##############
 
