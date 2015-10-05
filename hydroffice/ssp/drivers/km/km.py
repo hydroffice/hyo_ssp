@@ -3,6 +3,9 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import datetime as dt
 import struct
 import numpy as np
+import logging
+
+log = logging.getLogger(__name__)
 
 from ...ssp_dicts import Dicts
 from ... import __version__
@@ -151,7 +154,7 @@ class Km(object):
 
     @classmethod
     def km_time(cls, km_date, km_time):
-        #print("KM DATE: %s, TIME: %s" % (km_date, km_time))
+        # log.debug("KM DATE: %s, TIME: %s" % (km_date, km_time))
 
         date = str(km_date)
 
@@ -395,7 +398,7 @@ class KmSvp(Km):
         # break it into its bits
         svp = struct.unpack("<IIHH", self.data[16:28])
 
-        #print("KM SVP: %s %s:" % (svp[0], svp[1]))
+        # log.debug("KM SVP: %s %s:" % (svp[0], svp[1]))
         self.acquisition_time = Km.km_time(svp[0], svp[1]*1000)  # since we reuse the time in milli seconds function
 
         self.num_entries = svp[2]
@@ -708,8 +711,8 @@ class KmSeabedImage89(Km):
                 b_size = len(b_data)
                 loc_data[b_count:b_count+b_size] = b_data
                 b_count += b_size
-        #print(self.snippets[0][402], self.snippets[0][403])
-        print("serialized: %s B" % b_count)
+        # log.debug(self.snippets[0][402], self.snippets[0][403])
+        log.debug("serialized: %s B" % b_count)
 
         # fix checksum
         b_data = struct.pack("<H", KmSeabedImage89.calc_2bytes_checksum(loc_data))

@@ -4,6 +4,10 @@ import datetime
 import os
 import shutil
 
+import logging
+
+log = logging.getLogger(__name__)
+
 from .ssp_dicts import Dicts
 from .helper import SspError, Helper
 from .pkg_clients import PkgClientList
@@ -14,9 +18,7 @@ class Settings(object):
 
     here = os.path.abspath(os.path.dirname(__file__))
 
-    def __init__(self, verbose=False, callback_debug_print=None):
-        self.verbose = verbose
-        self.callback_debug_print = callback_debug_print
+    def __init__(self):
 
         self.export_formats = {
             'ASVP': False,
@@ -120,31 +122,28 @@ class Settings(object):
 
             # validity checks
             if len(line_str) == 0:
-                if self.verbose:
-                    print("> %s: skipping zero length line" % ini_file)
+                log.debug("%s: skipping zero length line" % ini_file)
                 continue
             elif line_str[0] == "#":
-                if self.verbose:
-                    print("> %s: skipping comment line:\n  %s" % (ini_file, line_str))
+                log.debug("%s: skipping comment line:\n  %s" % (ini_file, line_str))
                 continue
 
             num_fields = len(line_str.split("="))
             if num_fields != 2:
-                print("> %s: WARNING -> invalid line:\n  %s" % (ini_file, line_str))
+                log.warning("%s: invalid line:\n  %s" % (ini_file, line_str))
                 continue
 
             field_name = line_str.split("=")[0]
             field_value = line_str.split("=")[-1]
 
-            if self.verbose:
-                print("> %s: valid pair: ->\n  %s + %s" % (ini_file, field_name, field_value))
+            log.debug("%s: valid pair: -> %s + %s" % (ini_file, field_name, field_value))
 
             # finally read the stored information
             if field_name == "ssp_extension_source":
                 if not field_value:  # default
                     self.ssp_extension_source = Dicts.extension_sources["WOA09"]
                 else:
-                    if not field_value in Dicts.extension_sources:
+                    if field_value not in Dicts.extension_sources:
                         raise SspError("invalid ssp_extension_source: %s" % field_value)
                     self.ssp_extension_source = Dicts.extension_sources[field_value]
 
@@ -152,7 +151,7 @@ class Settings(object):
                 if not field_value:  # default
                     self.ssp_salinity_source = Dicts.salinity_sources["WOA09"]
                 else:
-                    if not field_value in Dicts.extension_sources:
+                    if field_value not in Dicts.extension_sources:
                         raise SspError("invalid ssp_salinity_source: %s" % field_value)
                     self.ssp_salinity_source = Dicts.salinity_sources[field_value]
 
@@ -160,7 +159,7 @@ class Settings(object):
                 if not field_value:  # default
                     self.ssp_temp_sal_source = Dicts.temp_sal_sources["WOA09"]
                 else:
-                    if not field_value in Dicts.extension_sources:
+                    if field_value not in Dicts.extension_sources:
                         raise SspError("invalid ssp_temperature_salinity_source: %s" % field_value)
                     self.ssp_temp_sal_source = Dicts.temp_sal_sources[field_value]
 
@@ -168,7 +167,7 @@ class Settings(object):
                 if not field_value:  # default
                     self.sis_server_source = Dicts.sis_server_sources["WOA09"]
                 else:
-                    if not field_value in Dicts.extension_sources:
+                    if field_value not in Dicts.extension_sources:
                         raise SspError("invalid sis_server_source: %s" % field_value)
                     self.sis_server_source = Dicts.sis_server_sources[field_value]
 
@@ -180,7 +179,7 @@ class Settings(object):
                             os.makedirs(field_value)
                         except OSError:
                             raise SspError("unable to create default WOA09 path folder")
-                    self.print_info("default woa path: %s" % field_value)
+                    log.info("default woa path: %s" % field_value)
                 if os.path.isabs(field_value):
                     self.woa_path = field_value
                 else:  # relative to this file
@@ -189,7 +188,7 @@ class Settings(object):
                         self.woa_path = woa_abs_path
                     else:
                         self.woa_path = None
-                        print("> %s: WARNING -> invalid WOA path:\n  %s" % (ini_file, field_value))
+                        log.warning("%s: invalid WOA path:\n  %s" % (ini_file, field_value))
 
             elif field_name == "ssp_up_or_down":
                 if not field_value:  # default
@@ -333,12 +332,11 @@ class Settings(object):
                 self.mvp_instrument_id = field_value
 
             else:
-                print("> %s: WARNING -> unknown pair:\n  %s + %s" % (ini_file, field_name, field_value))
+                log.warning("%s: unknown pair:  %s + %s" % (ini_file, field_name, field_value))
                 continue
 
     def switch_export_format(self, fmt):
-        if self.verbose:
-            print("> switching %s" % fmt)
+        log.debug("switching %s" % fmt)
 
         try:
             self.export_formats[fmt] = not self.export_formats[fmt]
@@ -416,19 +414,3 @@ class Settings(object):
 
     def print_all(self):
         print(self)
-
-    # ########## DEBUGGING ############
-
-    def print_info(self, info):
-        if self.verbose:
-            if self.callback_debug_print:
-                self.callback_debug_print("PRJ > %s" % info)
-            else:
-                print("PRJ > %s" % info)
-
-    def print_error(self, info):
-        if self.verbose:
-            if self.callback_debug_print:
-                self.callback_debug_print("ERROR > %s" % info)
-            else:
-                print("PRJ > ERROR > %s" % info)

@@ -4,15 +4,18 @@ import socket
 import struct
 import operator
 import time
+import logging
+
+log = logging.getLogger(__name__)
 
 from . import km
 from ..udpio import UdpIO
 
 
 class KmIO(UdpIO):
-    def __init__(self, listen_port, desired_datagrams, timeout, verbose=True, callback_print_func=None):
+    def __init__(self, listen_port, desired_datagrams, timeout):
 
-        UdpIO.__init__(self, listen_port, desired_datagrams, timeout, verbose, callback_print_func)
+        UdpIO.__init__(self, listen_port, desired_datagrams, timeout)
         self.name = "KNG"
 
         # A few Nones to accommodate the potential types of datagrams that are currently supported
@@ -52,14 +55,15 @@ class KmIO(UdpIO):
             110: 'Network Attitude Velocity'
         }
 
-    def request_iur(self, remote_ip):
+    @classmethod
+    def request_iur(cls, remote_ip):
         sock_out = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
         # We try all of them in the hopes that one works.
         codes = ["710", "122", "302", "3020", "2040"]
         for sensor in codes:
             # Leaving this statement on until I have a chance to test with all systems.
-            self.print_info("Requesting SVP from sensor %s" % sensor)
+            log.info("Requesting SVP from sensor %s" % sensor)
 
             # talker ID, Roger Davis (HMRG) suggested SM based on something KM told him
             output = '$SMR20,EMX=%s,' % sensor
@@ -89,7 +93,7 @@ class KmIO(UdpIO):
         except KeyError:
             name = "Unknown name"
 
-        # self.print_info("%s > DG %d/0x%x/%c [%s] > sz: %.1f KB"
+        # log.info("%s > DG %d/0x%x/%c [%s] > sz: %.1f KB"
         #                 % (self.sender, self.id, self.id, self.id, name, len(this_data)/1024))
 
         if not (self.id in self.desired_datagrams):
@@ -129,7 +133,7 @@ class KmIO(UdpIO):
             self.watercolumn = km.KmWatercolumn(this_data)
 
         else:
-            self.print_error("Missing parser for datagram type: %s" % self.id)
+            log.error("Missing parser for datagram type: %s" % self.id)
 
     def log_to_file(self, data):
         # This currently writes data in a Kongsberg .all format.

@@ -1,8 +1,11 @@
-from __future__ import absolute_import, division, print_function
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import datetime as dt
 import numpy as np
 import netCDF4
+import logging
+
+log = logging.getLogger(__name__)
 
 from .base_atlas import Atlas, AtlasError
 from .. import oceanography
@@ -14,8 +17,8 @@ from .. import __version__
 class RTOFS(Atlas):
     """RTOFS class to deal with RTOFS queries"""
 
-    def __init__(self, verbose=True, callback_print_func=None):
-        super(RTOFS, self).__init__(verbose, callback_print_func)
+    def __init__(self):
+        super(RTOFS, self).__init__()
         self.name = "RTO"
         self.source_info = "Global Real-Time Ocean Forecast System"
 
@@ -24,7 +27,7 @@ class RTOFS(Atlas):
         # has been acknowledged and is being worked on). -- JDB, 20111201
         self.use_yesterday_grids = True
         if self.use_yesterday_grids:
-            self.print_info("init > forcing the use of yesterday grids")
+            log.info("init > forcing the use of yesterday grids")
 
         # Going to keep track of whether or not grids are "loaded" (netCDF files are opened)
         self.grids_loaded = False
@@ -77,38 +80,37 @@ class RTOFS(Atlas):
         self.last_day_loaded = dt.datetime(1900, 1, 1, 0, 0, 0).strftime("%Y%m%d")
 
     def _open_files(self, input_date):
-        #self.print_info("opening")
+        # log.info("opening")
 
         if self.grids_loaded:
             if self.last_day_loaded == input_date.strftime("%Y%m%d"):
-                self.print_info("open grids already loaded for %s" % input_date)
+                log.info("open grids already loaded for %s" % input_date)
                 return
         else:
-            if self.verbose:
-                self.print_info("open last day loaded %s, but queried %s " % (self.last_day_loaded, input_date))
+            log.info("open last day loaded %s, but queried %s " % (self.last_day_loaded, input_date))
             self._close_files()
 
         if self.use_yesterday_grids:
             try:
                 yesterday = input_date - dt.timedelta(days=1)
                 url_temp, url_sal = self._build_urls(yesterday)
-                self.print_info("open url -> %s" % url_temp)
-                self.print_info("open url -> %s" % url_sal)
+                log.info("open url -> %s" % url_temp)
+                log.info("open url -> %s" % url_sal)
                 file_temp = netCDF4.Dataset(url_temp)
                 file_salinity = netCDF4.Dataset(url_sal)
                 day_index = 1
             except RuntimeError:
                 raise AtlasError("unable to access data")
         else:
-            self.print_info("open using standard UNTESTED operational mode (today is today!)")
+            log.info("open using standard UNTESTED operational mode (today is today!)")
             # This is the way it SHOULD be done, but the 0'th time slice is always missing data
             # (this is a problem acknowledged by the RTOFS folks).  Until it is resolved,
             # we have no choice but to access "yesterday's" nowcast and to take the
             # 1'th time slice, which is effectively a short range forecast for today.
             try:
                 url_temp, url_salinity = self._build_urls(input_date)
-                self.print_info("open url: %s" % url_temp)
-                self.print_info("open url: %s" % url_salinity)
+                log.info("open url: %s" % url_temp)
+                log.info("open url: %s" % url_salinity)
                 # Try out today's grids
                 file_temp = netCDF4.Dataset(url_temp)
                 file_salinity = netCDF4.Dataset(url_salinity)
@@ -117,9 +119,9 @@ class RTOFS(Atlas):
                 # If today's grids don't exist, then try yesterdays (today's grids don't get uploaded until ~6AM UTC)
                 yesterday = input_date - dt.timedelta(days=1)
                 url_temp, url_salinity = self._build_urls(yesterday)
-                self.print_info("open grids unavailable > trying %s" % yesterday)
-                self.print_info("open url: %s" % url_temp)
-                self.print_info("open url: %s" % url_salinity)
+                log.info("open grids unavailable > trying %s" % yesterday)
+                log.info("open url: %s" % url_temp)
+                log.info("open url: %s" % url_salinity)
 
                 try:
                     file_temp = netCDF4.Dataset(url_temp)
@@ -135,9 +137,9 @@ class RTOFS(Atlas):
         self.day_index = day_index
 
     def load_grids(self, input_date):
-        """used to load lat/long/depth"""
+        """ used to load lat/long/depth """
 
-        #self.print_info("loading")
+        # log.info("loading")
 
         try:
             self._open_files(input_date)
@@ -146,11 +148,11 @@ class RTOFS(Atlas):
 
         try:
             # Now get latitudes, longitudes and depths for x,y,z referencing
-            #self.print_info("load depth")
+            # log.info("load depth")
             self.depths = self.file_temp.variables['lev'][:]
-            #self.print_info("load latitude")
+            # log.info("load latitude")
             self.latitudes = self.file_temp.variables['lat'][:]
-            #self.print_info("load longitude")
+            # log.info("load longitude")
             self.longitudes = self.file_temp.variables['lon'][:]
         except:
             raise AtlasError("troubles in variable lookup for lat/long grid and/or depth")
@@ -163,8 +165,8 @@ class RTOFS(Atlas):
         self.lon_step = self.longitudes[1] - self.longitudes[0]
         self.lon_1 = self.longitudes[0]
 
-        self.print_info("load (lat1, lon1): (%s, %s); steps: %s, %s"
-                        % (self.lat_1, self.lon_1, self.lat_step, self.lon_step))
+        log.info("load (lat1, lon1): (%s, %s); steps: %s, %s"
+                 % (self.lat_1, self.lon_1, self.lat_step, self.lon_step))
 
     def grid_coords(self, latitude, longitude):
         # make longitude "safe" since RTOFS grid starts at east longitude 70-ish degrees
@@ -179,7 +181,7 @@ class RTOFS(Atlas):
 
     def query(self, latitude, longitude, date_time):
 
-        self.print_info("query: %s @ (%.6f, %.6f)" % (date_time, longitude, latitude))
+        log.info("query: %s @ (%.6f, %.6f)" % (date_time, longitude, latitude))
 
         if (latitude is None) or (longitude is None) or (date_time is None):
             return None, None, None
@@ -193,7 +195,7 @@ class RTOFS(Atlas):
         # Make all longitudes safe
         while longitude < self.lon_1:
             longitude += 360.0
-            self.print_info("query: adjusting longitude to %s" % longitude)
+            log.info("query: adjusting longitude to %s" % longitude)
 
         latitudes = np.zeros((self.search_window, self.search_window))
         longitudes = np.zeros((self.search_window, self.search_window))
@@ -205,7 +207,7 @@ class RTOFS(Atlas):
 
         lat_index, lon_index = self.grid_coords(latitude, longitude)
         num_lons = self.file_temp.variables['temperature'].shape[3]
-        #num_lats = self.file_temp.variables['temperature'].shape[2]
+        # num_lats = self.file_temp.variables['temperature'].shape[2]
 
         lat_s_idx = lat_index - self.search_half_window
         lat_n_idx = lat_index + self.search_half_window
@@ -219,9 +221,9 @@ class RTOFS(Atlas):
         lon_e_idx = lon_index + self.search_half_window
 
         if (lon_e_idx < num_lons) and (lon_w_idx >= 0):
-            self.print_info("safe case")
-            self.print_info("using indices -> %s %s %s %s"
-                            % (lat_s_idx, lat_n_idx, lon_w_idx, lon_e_idx))
+            log.info("safe case")
+            log.info("using indices -> %s %s %s %s"
+                     % (lat_s_idx, lat_n_idx, lon_w_idx, lon_e_idx))
 
             # Need +1 on the north and east indices since it is the "stop" value in these slices
             t = self.file_temp.variables['temperature'][1, :, lat_s_idx:lat_n_idx + 1, lon_w_idx:lon_e_idx + 1]
@@ -240,7 +242,7 @@ class RTOFS(Atlas):
             for i in range(self.search_window):
                 longitudes[i, :] = lons
         else:
-            self.print_info("split case")
+            log.info("split case")
 
             # Do the left portion of the array first, this will run into the wrap
             # longitude so limit it accordingly
@@ -250,8 +252,8 @@ class RTOFS(Atlas):
             while lon_w_idx < 0:
                 lon_w_idx = lon_w_idx + num_lons
 
-            self.print_info("using lon west/east indices -> %s %s"
-                            % (lon_w_idx, lon_e_idx))
+            log.info("using lon west/east indices -> %s %s"
+                     % (lon_w_idx, lon_e_idx))
 
             # Need +1 on the north and east indices since it is the "stop" value in these slices
             t_left = self.file_temp.variables['temperature'][1, :, lat_s_idx:lat_n_idx + 1, lon_w_idx:lon_e_idx + 1]
@@ -270,7 +272,7 @@ class RTOFS(Atlas):
             for i in range(self.search_window):
                 longitudes[i, 0:lons_left.size] = lons_left
 
-            self.print_info("longitudes are now: %s" % longitudes)
+            log.info("longitudes are now: %s" % longitudes)
 
             # Do the right portion of the array first, this will run into the wrap
             # longitude so limit it accordingly
@@ -302,16 +304,16 @@ class RTOFS(Atlas):
             s[:, :, 0:lons_left.size] = s_left
             s[:, :, lons_left.size:self.search_window] = s_right
 
-        self.print_info("done data retrieval > calculating nodes distance")
+        log.info("done data retrieval > calculating nodes distance")
 
         # Calculate distances from requested position to each of the grid node locations
         for i in range(self.search_window):
             for j in range(self.search_window):
                 dist = self.g.distance(longitudes[i, j], latitudes[i, j], longitude, latitude)
                 distances[:, i, j] = dist
-        #         self.print_info("node %s, pos: %3.1f, %3.1f, dist: %3.1f"
+        #         log.info("node %s, pos: %3.1f, %3.1f, dist: %3.1f"
         #                         % (i, latitudes[i, j], longitudes[i, j], distances[0, i, j]))
-        # self.print_info("distance array:\n%s" % distances[0])
+        # log.info("distance array:\n%s" % distances[0])
 
         # Get mask of "no data" elements and replace these with NaNs
         # in distance array
@@ -320,8 +322,8 @@ class RTOFS(Atlas):
         s_mask = np.isnan(s)
         distances[s_mask] = np.nan
 
-        self.print_info("reference pressure: %s dbar" % self.reference_pressure)
-        self.print_info("doing depth levels: %s" % range(t.shape[0]))
+        log.info("reference pressure: %s dbar" % self.reference_pressure)
+        log.info("doing depth levels: %s" % range(t.shape[0]))
 
         # Spin through all the depth levels
         num_values = 0
@@ -333,11 +335,11 @@ class RTOFS(Atlas):
             try:
                 ind = np.nanargmin(d_level)
             except ValueError:
-                self.print_info("%s: all-NaN slices" % i)
+                log.info("%s: all-NaN slices" % i)
                 continue
 
             if np.isnan(ind):
-                self.print_info("%s: bottom of valid data" % i)
+                log.info("%s: bottom of valid data" % i)
                 break
 
             ind2 = np.unravel_index(ind, t_level.shape)
@@ -355,13 +357,13 @@ class RTOFS(Atlas):
             temperatures_in_situ[i] = oceanography.insitu_temperature(t_closest, salinities[i], pressure,
                                                                       self.reference_pressure)
 
-            self.print_info("%02d: %6.1f %6.1f > T/S/Dist: %3.1f %3.1f %3.1f [pot.temp. %3.1f]"
-                            % (i, depths[i], pressure, temperatures_in_situ[i], s_closest, d_closest, t_closest))
+            log.info("%02d: %6.1f %6.1f > T/S/Dist: %3.1f %3.1f %3.1f [pot.temp. %3.1f]"
+                     % (i, depths[i], pressure, temperatures_in_situ[i], s_closest, d_closest, t_closest))
 
             num_values += 1
 
         if num_values == 0:
-            self.print_info("no data from lookup!")
+            log.info("no data from lookup!")
             return None
 
         ind = np.nanargmin(distances[0])

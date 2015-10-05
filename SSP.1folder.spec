@@ -1,84 +1,68 @@
-# -*- mode: python -*-
-from PyInstaller import is_win, is_darwin
-from PyInstaller.building.datastruct import Tree
-from PyInstaller.building.build_main import Analysis, PYZ, EXE, COLLECT, BUNDLE
+# Builds a single-folder EXE for distribution.
+# Note that an "unbundled" distribution launches much more quickly, but
+# requires an installer program to distribute.
+#
+# To compile, execute the following within the source directory:
+#
+# python /path/to/pyinstaller.py SSP.1folder.spec
+#
+# The resulting .exe file is placed in the dist/SSP folder.
 
-import os
-import sys
+from PyInstaller.building.build_main import Analysis, PYZ, EXE, COLLECT, BUNDLE, TOC
+from PyInstaller import is_darwin
 
 
-exe_file = 'SSP.out'
-if is_win:
-    exe_file = 'SSP.exe'
-elif is_darwin:
-    exe_file = 'SSP'
+def collect_pkg_data(package, include_py_files=False, subdir=None):
+    import os
+    from PyInstaller.utils.hooks import get_package_paths, remove_prefix, PY_IGNORE_EXTENSIONS
+
+    # Accept only strings as packages.
+    if type(package) is not str:
+        raise ValueError
+
+    pkg_base, pkg_dir = get_package_paths(package)
+    if subdir:
+        pkg_dir = os.path.join(pkg_dir, subdir)
+    # Walk through all file in the given package, looking for data files.
+    data_toc = TOC()
+    for dir_path, dir_names, files in os.walk(pkg_dir):
+        for f in files:
+            extension = os.path.splitext(f)[1]
+            if include_py_files or (extension not in PY_IGNORE_EXTENSIONS):
+                source_file = os.path.join(dir_path, f)
+                dest_folder = remove_prefix(dir_path, os.path.dirname(pkg_base) + os.sep)
+                dest_file = os.path.join(dest_folder, f)
+                data_toc.append((dest_file, source_file, 'DATA'))
+
+    return data_toc
+
+pkg_data = collect_pkg_data('hydroffice.ssp')
 
 icon_file = 'SSP.ico'
 if is_darwin:
     icon_file = 'SSP.icns'
 
-# hydro-package data
-media_tree = Tree('hydroffice/ssp/gui/media', prefix='hydroffice/ssp/gui/media')
-manual_tree = Tree('hydroffice/ssp/docs', prefix='hydroffice/ssp/docs', excludes=['*.docx',])
-pkg_data = [
-    ('hydroffice/ssp/config.ini', 'hydroffice/ssp/config.ini', 'DATA'),
-    ('hydroffice/ssp/oldgui/ccom.png', 'hydroffice/ssp/oldgui/ccom.png', 'DATA'),
-    ('hydroffice/ssp/oldgui/favicon.ico', 'hydroffice/ssp/oldgui/favicon.ico', 'DATA')
-]
-
-# run the analysis
-block_cipher = None
 a = Analysis(['SSP.py'],
-             pathex=['..\\_base'],
-             binaries=None,
-             datas=None,
+             pathex=[],
              hiddenimports=[],
-             hookspath=['..\\zibo\\hooks'],
-             runtime_hooks=None,
-             excludes=None,
-             win_no_prefer_redirects=None,
-             win_private_assemblies=None,
-             cipher=block_cipher
-             )
+             hookspath=None,
+             runtime_hooks=None)
 
-for d in a.binaries:
-    if "system32\\pywintypes34.dll" in d[1]:
-        a.binaries.remove(d)
-    if "system32\\pywintypes27.dll" in d[1]:
-        a.binaries.remove(d)
-
-# a.binaries = [x for x in a.binaries if not x[0].startswith("scipy")]
-# a.binaries = [x for x in a.binaries if not x[0].startswith("IPython")]
-# a.binaries = [x for x in a.binaries if not x[0].startswith("zmq")]
-# a.binaries = [x for x in a.binaries if not x[0].startswith("OpenGL_accelerate")]
-# a.binaries = [x for x in a.binaries if not x[0].startswith("pandas")]
-# a.binaries = [x for x in a.binaries if not x[0].startswith("PyQt4")]
-
-# The following block is necessary to prevent a hard crash when launching
-# the resulting .exe file
-for d in a.datas:
-    if 'pyconfig' in d[0]:
-        a.datas.remove(d)
-        break
-        
-pyz = PYZ(a.pure, a.zipped_data,
-          cipher=block_cipher
-          )
+pyz = PYZ(a.pure)
 exe = EXE(pyz,
           a.scripts,
           exclude_binaries=True,
-          name=exe_file,
+          name='SSP',
           debug=False,
           strip=None,
           upx=True,
-          console=True, icon=icon_file)
+          console=True,
+          icon=icon_file)
 coll = COLLECT(exe,
                a.binaries,
                a.zipfiles,
                a.datas,
                pkg_data,
-               media_tree,
-               manual_tree,
                strip=None,
                upx=True,
                name='SSP')

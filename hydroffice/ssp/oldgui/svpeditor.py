@@ -21,6 +21,14 @@ import wx
 from wx import PyDeadObjectError
 from . import wxmpl  # local version of this module, since Pydro's one has an issue
 
+import logging
+
+log = logging.getLogger(__name__)
+
+from hydroffice.base.helper import HyOError
+from hydroffice.base.timerthread import TimerThread
+from hydroffice.base.gdal_aux import GdalAux
+
 from .plots import WxPlots, PlotsSettings
 from . import svpeditor_ui
 from . import refmonitor
@@ -34,9 +42,6 @@ from ..ssp_db import SspDb
 from ..ssp_dicts import Dicts
 from ..ssp_collection import SspCollection
 from ..helper import Helper, SspError
-from ...base.helper import HyOError
-from ...base.timerthread import TimerThread
-from ...base.gdal_aux import GdalAux
 from ..atlases.woa09checker import Woa09Checker
 
 
@@ -49,10 +54,9 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
         "SERVER": 2
     }
 
-    def __init__(self, verbose=False):
+    def __init__(self):
         svpeditor_ui.SVPEditorBase.__init__(self, None, -1, "")
 
-        self.verbose = verbose
         self.version = __version__
         self.license = __license__
 
@@ -81,19 +85,15 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
                                            ' - restart SSP Manager\n'
                                      % Woa09Checker.get_atlases_folder(),
                                      'WOA09 atlas', wx.OK | wx.ICON_QUESTION)
-                    self.print_info("disabling WOA09 functions")
+                    log.info("disabling WOA09 functions")
             else:
-                self.print_info("disabling WOA09 functions")
+                log.info("disabling WOA09 functions")
                 with_woa09 = False
         else:
             with_woa09 = True
 
         # We load WOA09 atlas and attempt the RTOFS atlas (since it requires internet connection)
-        self.prj = project.Project(with_listeners=True,
-                                   with_woa09=with_woa09,
-                                   with_rtofs=True,
-                                   verbose=True,
-                                   verbose_config=False)
+        self.prj = project.Project(with_listeners=True, with_woa09=with_woa09, with_rtofs=True)
 
         # check listeners
         if not self.prj.has_running_listeners():
@@ -345,24 +345,24 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
             self.clear_app()
 
         msg = "User requested WOA09 synthetic cast"
-        self.prj.print_info(msg)
+        log.info(msg)
 
         latitude, longitude = self.get_position()
         if (latitude is None) or (longitude is None):
-            self.print_info("not a valid position")
+            log.info("not a valid position")
             return
-        self.print_info("using position: %s, %s" % (longitude, latitude))
+        log.info("using position: %s, %s" % (longitude, latitude))
 
         query_date = self.get_date()
         if query_date is None:
-            self.print_info("not a valid date time")
+            log.info("not a valid date time")
             return
-        self.print_info("using date time: %s" % query_date)
+        log.info("using date time: %s" % query_date)
 
         try:
             woa_data, woa_min, woa_max = self.prj.woa09_atlas.query(latitude, longitude, query_date)
             if woa_data is None:
-                self.print_info("unable to retrieve data")
+                log.info("unable to retrieve data")
                 return
 
         except SspError:
@@ -372,7 +372,7 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
             dlg.Destroy()
             return
 
-        self.print_info("got WOA SSP:\n%s" % woa_data)
+        log.info("got WOA SSP:\n%s" % woa_data)
         self.prj.ssp_woa = woa_data
         self.prj.ssp_woa_min = woa_min
         self.prj.ssp_woa_max = woa_max
@@ -388,7 +388,7 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
         self._update_state(self.gui_state['OPEN'])
 
         self.status_message = "Synthetic WOA09 cast"
-        self.print_info("Synthetic WOA09 cast using pos: (%.6f, %.6f) and time: %s"
+        log.info("Synthetic WOA09 cast using pos: (%.6f, %.6f) and time: %s"
                         % (latitude, longitude, query_date))
 
     def on_file_query_rtofs(self, evt):
@@ -404,24 +404,24 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
             self.clear_app()
 
         msg = "User requested RTOFS synthetic cast"
-        self.prj.print_info(msg)
+        log.info(msg)
 
         latitude, longitude = self.get_position()
         if (latitude is None) or (longitude is None):
-            self.print_info("not a valid position")
+            log.info("not a valid position")
             return
-        self.print_info("using position: %s, %s" % (longitude, latitude))
+        log.info("using position: %s, %s" % (longitude, latitude))
 
         query_date = self.get_date()
         if query_date is None:
-            self.print_info("not a valid date time")
+            log.info("not a valid date time")
             return
-        self.print_info("using date time: %s" % query_date)
+        log.info("using date time: %s" % query_date)
 
         try:
             temp_ssp = self.prj.rtofs_atlas.query(latitude, longitude, query_date)
             if temp_ssp is None:
-                self.print_info("empty result from RTOFS query")
+                log.info("empty result from RTOFS query")
                 return
 
         except SspError:
@@ -438,10 +438,10 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
                                                                                                       longitude,
                                                                                                       query_date)
             if self.prj.ssp_woa is None:
-                self.print_info("failure in performing WOA09 lookup")
+                log.info("failure in performing WOA09 lookup")
 
         except HyOError:
-            self.print_info("failure in performing WOA09 lookup")
+            log.info("failure in performing WOA09 lookup")
 
         self.prj.filename = "%s_RTOFS" % (self.prj.ssp_data.date_time.strftime("%Y%m%d_%H%M%S"))
         self.prj.s.filename_prefix = os.path.splitext(self.prj.filename)[0]
@@ -453,11 +453,11 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
         self._update_state(self.gui_state['OPEN'])
 
         self.status_message = "Synthetic RTOFS cast"
-        self.print_info("Synthetic RTOFS cast using pos: (%.6f, %.6f) and time: %s"
+        log.info("Synthetic RTOFS cast using pos: (%.6f, %.6f) and time: %s"
                         % (latitude, longitude, query_date))
 
     def on_file_query_sis(self, evt):
-        self.print_info("requesting profile from SIS")
+        log.info("requesting profile from SIS")
 
         if self.prj.has_ssp_loaded:
             self.prj.clean_project()
@@ -466,7 +466,7 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
         # Need to request the current SVP cast from the clients prior.  Take the first one that comes through.
         self.prj.km_listener.ssp = None
         for client in range(self.prj.s.client_list.num_clients):
-            self.print_info("testing client %s" % self.prj.s.client_list.clients[client].IP)
+            log.info("testing client %s" % self.prj.s.client_list.clients[client].IP)
             self.prj.ssp_recipient_ip = self.prj.s.client_list.clients[client].IP
             self.prj.get_cast_from_sis()
             if self.prj.km_listener.ssp:
@@ -479,13 +479,13 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
             dlg.Destroy()
             return
 
-        self.print_info("got SSP from SIS: %s" % self.prj.km_listener.ssp)
+        log.info("got SSP from SIS: %s" % self.prj.km_listener.ssp)
 
         latitude, longitude = self.get_position()
         if (latitude is None) or (longitude is None):
-            self.print_info("not a valid position")
+            log.info("not a valid position")
             return
-        self.print_info("using position: %s, %s" % (longitude, latitude))
+        log.info("using position: %s, %s" % (longitude, latitude))
 
         self.prj.ssp_data = self.prj.km_listener.ssp.convert_ssp()
         self.prj.ssp_data.set_position(latitude, longitude)
@@ -601,21 +601,21 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
 
         # Kill all gui tools
         if self.ref_monitor:
-            self.print_info("killing refraction monitor")
+            log.info("killing refraction monitor")
             self.ref_monitor.OnExit()
         if self.geo_monitor:
-            self.print_info("killing geo monitor")
+            log.info("killing geo monitor")
             self.geo_monitor.OnExit()
         if self.set_viewer:
-            self.print_info("killing settings viewer")
+            log.info("killing settings viewer")
             self.set_viewer.OnExit()
 
         if self.status_timer:
-            self.print_info("stopping status timer")
+            log.info("stopping status timer")
             if self.status_timer.is_alive():
                 self.status_timer.stop()
         if self.plot_timer:
-            self.print_info("stopping plot timer")
+            log.info("stopping plot timer")
             if self.plot_timer.is_alive():
                 self.plot_timer.stop()
 
@@ -623,7 +623,7 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
         time.sleep(2)  # to be sure that all the threads stop
 
         self.Destroy()  # Close the frame.
-        self.print_info("exit done")
+        log.info("exit done")
 
     # ####### View ########
 
@@ -790,7 +790,7 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
         # msg = "View limits:\n" \
         #       "- depth: %s -> %s\n" \
         #       "- speed: %s -> %s" % (self.p.min_depth, self.p.max_depth, self.p.min_speed, self.p.max_speed)
-        # self.print_info(msg)
+        # log.info(msg)
 
     # ####### Plot ######
 
@@ -800,7 +800,7 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
 
         self.p.sel_mode = self.p.sel_modes["Zoom"]
         self._update_plot()
-        self.print_info("inspection mode: zoom")
+        log.info("inspection mode: zoom")
 
     def on_plot_flag(self, evt):
         self.prj.s.inspection_mode = Dicts.inspections_mode['Flag']  # flag data
@@ -808,7 +808,7 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
 
         self.p.sel_mode = self.p.sel_modes["Flag"]
         self._update_plot()
-        self.print_info("flag interaction: active")
+        log.info("flag interaction: active")
 
     def on_plot_unflag(self, evt):
         self.prj.s.inspection_mode = Dicts.inspections_mode['Unflag']  # unflag data
@@ -816,7 +816,7 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
 
         self.p.sel_mode = self.p.sel_modes["Flag"]
         self._update_plot()
-        self.print_info("unflag interaction: active")
+        log.info("unflag interaction: active")
 
     def on_plot_insert(self, evt):
         self.prj.s.inspection_mode = Dicts.inspections_mode['Insert']  # insert data
@@ -824,13 +824,13 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
 
         self.p.sel_mode = self.p.sel_modes["Insert"]
         self._update_plot()
-        self.print_info("insert interaction: active")
+        log.info("insert interaction: active")
 
     def _on_point_selected(self, evt):
         if self.p.sel_mode != self.p.sel_modes["Insert"]:
             return
 
-        self.print_info("point selection: %s, %s" % (evt.xdata, evt.ydata))
+        log.info("point selection: %s, %s" % (evt.xdata, evt.ydata))
 
         x, y = evt.xdata, evt.ydata
         if evt.axes == self.p.speed_axes:
@@ -851,7 +851,7 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
             self.prj.ssp_data.insert_sample(depth=self.prj.s.user_depth, speed=self.prj.s.user_speed,
                                             temperature=self.prj.s.user_temperature, salinity=self.prj.s.user_salinity,
                                             source=Dicts.source_types['User'])
-            self.prj.print_info(msg)
+            log.info(msg)
             self.prj.s.clear_user_samples()
 
         elif evt.axes == self.p.temp_axes:
@@ -869,7 +869,7 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
         if (self.p.sel_mode != self.p.sel_modes["Flag"]) and (self.p.sel_mode != self.p.sel_modes["Zoom"]):
             return
 
-        self.print_info("area selection: %s, %s / %s, %s"
+        log.info("area selection: %s, %s / %s, %s"
                         % (evt.x1data, evt.y1data, evt.x2data, evt.y2data))
 
         x1, y1 = evt.x1data, evt.y1data
@@ -904,7 +904,7 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
 
     def _update_plot(self):
         """Update the plots"""
-        # self.print_info("updating plots")
+        # log.info("updating plots")
 
         if self.prj.has_sippican_to_process or self.prj.has_mvp_to_process:
             if self.state == self.gui_state["CLOSED"]:
@@ -915,17 +915,17 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
         try:
             self._update_plot_worker()
         except PyDeadObjectError:
-            self.print_info("dead object")
+            log.info("dead object")
         except IndexError:
-            self.print_info("index error during plot updating")
+            log.info("index error during plot updating")
         except KeyError:
-            self.print_info("key error during plot updating")
+            log.info("key error during plot updating")
         except ValueError:
-            self.print_info("value error during plot updating")
+            log.info("value error during plot updating")
         except AttributeError:
-            self.print_info("attribute error during plot updating")
+            log.info("attribute error during plot updating")
         except RuntimeError:
-            self.print_info("runtime error during plot updating")
+            log.info("runtime error during plot updating")
 
     def _update_plot_worker(self):
         """Update the plots"""
@@ -1175,7 +1175,7 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
             return
 
         if self.prj.ssp_reference:
-            self.print_info("using reference cast to augment salinity")
+            log.info("using reference cast to augment salinity")
             self.prj.ssp_data.replace_samples(self.prj.ssp_reference, 'salinity')
             salinity_source = 'user-specified reference file %s' % self.prj.ssp_reference_filename
 
@@ -1185,7 +1185,7 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
                 salinity_source = "RTOFS"
                 if not self.prj.rtofs_atlas_loaded:
                     if self.prj.woa09_atlas_loaded:  # try with WOA09
-                        self.print_info("RTOFS grids not loaded, reverting to WOA09")
+                        log.info("RTOFS grids not loaded, reverting to WOA09")
                         #ext_type = Dicts.source_types['Woa09Extend']
                         salinity_source = "WOA09"
                         self.prj.ssp_data.replace_samples(self.prj.ssp_woa, 'salinity')
@@ -1204,7 +1204,7 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
 
                     except SspError:
                         if self.prj.woa09_atlas_loaded:  # try with WOA09
-                            self.print_info("failure in RTOFS lookup, reverting to WOA09")
+                            log.info("failure in RTOFS lookup, reverting to WOA09")
                             #ext_type = Dicts.source_types['Woa09Extend']
                             salinity_source = "WOA09"
                             self.prj.ssp_data.replace_samples(self.prj.ssp_woa, 'salinity')
@@ -1247,7 +1247,7 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
 
         self._update_plot()
         msg = 'Salinity added to profile using source %s' % salinity_source
-        self.prj.print_info(msg)
+        log.info(msg)
         self.status_message = 'Salinity added from %s' % salinity_source
 
     def on_process_load_temp_and_sal(self, evt):
@@ -1262,7 +1262,7 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
             return
 
         if self.prj.ssp_reference:
-            self.print_info("using reference cast to augment salinity and temperature")
+            log.info("using reference cast to augment salinity and temperature")
             self.prj.ssp_data.replace_samples(self.prj.ssp_reference, 'salinity')
             self.prj.ssp_data.replace_samples(self.prj.ssp_reference, 'temperature')
             temperature_salinity_source = 'user specified reference file %s' % self.prj.ssp_reference_filename
@@ -1273,7 +1273,7 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
                 temperature_salinity_source = "RTOFS"
                 if not self.prj.rtofs_atlas_loaded:
                     if self.prj.woa09_atlas_loaded:  # try with WOA09
-                        self.print_info("RTOFS grids not loaded, reverting to WOA09")
+                        log.info("RTOFS grids not loaded, reverting to WOA09")
                         #ext_type = Dicts.source_types['Woa09Extend']
                         temperature_salinity_source = "WOA09"
                         self.prj.ssp_data.replace_samples(self.prj.ssp_woa, 'salinity')
@@ -1294,7 +1294,7 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
 
                     except SspError:
                         if self.prj.woa09_atlas_loaded:  # try with WOA09
-                            self.print_info("failure in RTOFS lookup, reverting to WOA09")
+                            log.info("failure in RTOFS lookup, reverting to WOA09")
                             #ext_type = Dicts.source_types['Woa09Extend']
                             temperature_salinity_source = "WOA09"
                             self.prj.ssp_data.replace_samples(self.prj.ssp_woa, 'salinity')
@@ -1338,7 +1338,7 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
         # We don't recalculate speed, of course.  T/S is simply for absorption coefficient calculation
         self._update_plot()
         msg = 'Temperature/Salinity added to profile using source %s' % temperature_salinity_source
-        self.prj.print_info(msg)
+        log.info(msg)
         self.status_message = "Temperature/salinity added from %s" % temperature_salinity_source
 
     def on_process_load_surface_ssp(self, evt):
@@ -1380,16 +1380,16 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
         self._update_plot()
         msg = 'Surface sound speed %.2f added to profile for upper %.1f m (source: %s)' \
               % (surface_ssp, self.prj.vessel_draft, surface_ssp_source)
-        self.prj.print_info(msg)
+        log.info(msg)
         self.status_message = "Added surface sound speed %.1f" % surface_ssp
 
     def on_process_extend(self, evt):
         if self.prj.has_ssp_loaded is None:
-            self.print_info("no ssp to extend")
+            log.info("no ssp to extend")
             return
 
         if self.prj.ssp_reference:
-            self.print_info("Extending with user-specified reference profile")
+            log.info("Extending with user-specified reference profile")
             ext_type = Dicts.source_types['UserRefExtend']
             self.prj.ssp_data.extend(self.prj.ssp_reference, ext_type)
 
@@ -1398,7 +1398,7 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
                 ext_type = Dicts.source_types['RtofsExtend']
                 if not self.prj.rtofs_atlas_loaded:
                     if self.prj.woa09_atlas_loaded:  # try with WOA09
-                        self.print_info("RTOFS grids not loaded, reverting to WOA09")
+                        log.info("RTOFS grids not loaded, reverting to WOA09")
                         ext_type = Dicts.source_types['Woa09Extend']
                         self.prj.ssp_data.extend(self.prj.ssp_woa, ext_type)
                     else:
@@ -1418,7 +1418,7 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
 
                     except SspError:
                         if self.prj.woa09_atlas_loaded:  # try with WOA09
-                            self.print_info("failure in RTOFS lookup, reverting to WOA09")
+                            log.info("failure in RTOFS lookup, reverting to WOA09")
                             ext_type = Dicts.source_types['Woa09Extend']
                             self.prj.ssp_data.extend(self.prj.ssp_woa, ext_type)
 
@@ -1456,17 +1456,17 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
 
         msg = 'Profile extended to depth %d m using source type %s' \
               % (self.prj.ssp_data.data[Dicts.idx['depth'], self.prj.ssp_data.data.shape[1] - 1], ext_type)
-        self.prj.print_info(msg)
+        log.info(msg)
         self.prj.ssp_data.modify_source_info("extension type %s" % ext_type)
         self.status_message = 'Profile extended using source type %s' % ext_type
 
     def on_process_preview_thinning(self, event):
-        self.print_info("preview thinning")
+        log.info("preview thinning")
         self.prj.ssp_data.prepare_sis_data(thin=True)
 
         self._update_plot()
 
-        self.prj.print_info('Preview the thinning step required by some client types')
+        log.info('Preview the thinning step required by some client types')
         self.status_message = 'Preview thinning'
 
     def on_process_send_profile(self, evt):
@@ -1518,7 +1518,7 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
                 dlg.Destroy()
 
             if corrector != 0.0:
-                self.print_info("applying corrector: %s %s" % (corrector, depth))
+                log.info("applying corrector: %s %s" % (corrector, depth))
 
                 if self.prj.surface_speed_applied:
                     idx = self.prj.ssp_data.data[Dicts.idx['depth'], :] > self.prj.ssp_applied_depth
@@ -1540,7 +1540,7 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
                 fmt = Dicts.kng_formats['S12']
 
             msg = "Transmitting cast to %s" % self.prj.s.client_list.clients[client].IP
-            self.print_info(msg)
+            log.info(msg)
             self.status_message = msg
             self._update_status()
 
@@ -1549,7 +1549,7 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
             if self.prj.s.sis_auto_apply_manual_casts:
                 if success:
                     if self.prj.s.client_list.clients[client].protocol == "SIS":
-                        self.prj.print_info("Reception confirmed from " + self.prj.s.client_list.clients[client].IP)
+                        log.info("Reception confirmed from " + self.prj.s.client_list.clients[client].IP)
                         self.status_message = "Reception confirmed!"
                         msg = "SIS confirmed the SSP reception!"
                         dlg = wx.MessageDialog(None, msg, "SIS acknowledge", wx.OK)
@@ -1569,20 +1569,20 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
                            "and match date/time in SIS .asvp filename with cast date/time to ensure receipt\n"
                     msg += "2) Ensure SVP datagram is being distributed to this IP " \
                            "on port %d to enable future confirmations" % self.prj.s.km_listen_port
-                    self.prj.print_info(msg)
+                    log.info(msg)
                     dlg = wx.MessageDialog(None, msg, "Acknowledge", wx.OK | wx.ICON_ERROR)
                     dlg.ShowModal()  # Show it
                     dlg.Destroy()
 
         if not self.prj.s.sis_auto_apply_manual_casts:
             msg = "Profile transmitted, SIS is waiting for operator confirmation."
-            self.prj.print_info(msg)
+            log.info(msg)
             dlg = wx.MessageDialog(None, msg, "Acknowledge", wx.OK)
             dlg.ShowModal()  # Show it
             dlg.Destroy()
 
         msg = "Transmitted Data: %s" % self.prj.ssp_data.convert_km(fmt)
-        self.prj.print_info(msg)
+        log.info(msg)
 
         # Now that we're done sending to clients, auto-export files if desired
         if self.prj.s.auto_export_on_send:
@@ -1606,7 +1606,7 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
             self._update_plot()
 
     def on_process_store_db(self, event):
-        self.print_info("store current SSP:\n%s" % self.prj.ssp_data)
+        log.info("store current SSP:\n%s" % self.prj.ssp_data)
 
         # create a collection with only the current cast
         ssp_coll = SspCollection()
@@ -1627,24 +1627,25 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
         if result == wx.ID_NO:
             return
 
-        self.print_info("restart processing")
+        log.info("restart processing")
         self.prj.ssp_data.restart_processing()
 
         self._update_plot()
 
-        self.prj.print_info('Restart processing using stored raw data')
+        log.info('Restart processing using stored raw data')
         self.status_message = 'Restart processing'
 
     def on_process_log_metadata(self, evt):
         """Activate the logging of the processing metadata"""
         flag = self.ProcessLogMetadata.IsChecked()
 
+        # TODO: manage to use SQLite Handler
         # to be able to log the first and the last message
         if flag:
             self.prj.s.log_processing_metadata = flag
-            self.prj.print_info("START logging of processing metadata")
+            log.info("START logging of processing metadata")
         else:
-            self.prj.print_info("END logging of processing metadata")
+            log.info("END logging of processing metadata")
             self.prj.s.log_processing_metadata = flag
 
     # def on_process_express_mode(self, evt):
@@ -1666,12 +1667,12 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
     # ####### Database ######
 
     def on_db_query_internal_db(self, event):
-        self.print_info("query internal db")
+        log.info("query internal db")
 
         self._query_db()
 
     def on_db_query_external_db(self, event):
-        self.print_info("query external db")
+        log.info("query external db")
 
         # retrieve the name of the format
         selection_filter = "DB files (*.db,*.DB)|*.db;*.DB|All File (*.*)|*.*"
@@ -1748,19 +1749,19 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
         self._update_state(self.gui_state['OPEN'])
 
         self.status_message = "Loaded SSP from local DB"
-        self.print_info("Loaded selected SSP: %s [%s]\n" % (dialog.GetSelection(), dialog.GetStringSelection()))
+        log.info("Loaded selected SSP: %s [%s]\n" % (dialog.GetSelection(), dialog.GetStringSelection()))
 
         ssp_db.disconnect()
 
     # Delete
 
     def on_db_delete_internal(self, event):
-        self.print_info("deletion from internal db")
+        log.info("deletion from internal db")
 
         self._delete_db_ssp()
 
     def on_db_delete_external(self, event):
-        self.print_info("deletion from external db")
+        log.info("deletion from external db")
 
         # retrieve the name of the format
         selection_filter = "DB files (*.db,*.DB)|*.db;*.DB|All File (*.*)|*.*"
@@ -1830,15 +1831,15 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
     # Export
 
     def on_db_export_shp(self, event):
-        self.print_info("exporting as shapefile")
+        log.info("exporting as shapefile")
         self._db_export(GdalAux.ogr_formats[b'ESRI Shapefile'])
 
     def on_db_export_kml(self, event):
-        self.print_info("exporting as kml")
+        log.info("exporting as kml")
         self._db_export(GdalAux.ogr_formats[b'KML'])
 
     def on_db_export_csv(self, event):
-        self.print_info("exporting as csv")
+        log.info("exporting as csv")
         self._db_export(GdalAux.ogr_formats[b'CSV'])
 
     @classmethod
@@ -1858,17 +1859,17 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
     # Plot
 
     def on_db_plot_map_ssp(self, event):
-        self.print_info("plot a map with all SSPs")
+        log.info("plot a map with all SSPs")
         ssp_db = SspDb()
         ssp_db.map_ssp_view()
 
     def on_db_plot_daily_ssp(self, event):
-        self.print_info("plot daily SSPs")
+        log.info("plot daily SSPs")
         ssp_db = SspDb()
         ssp_db.create_daily_plots(save_fig=False)
 
     def on_db_save_daily_ssp(self, event):
-        self.print_info("save daily SSPs")
+        log.info("save daily SSPs")
         ssp_db = SspDb()
         ssp_db.create_daily_plots(save_fig=True)
         Helper.explore_folder(ssp_db.plots_folder)
@@ -1878,20 +1879,20 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
     def on_tools_geo_monitor(self, evt):
         """Display a map with the profile position"""
         if not self.geo_monitor:
-            self.print_info("geo monitor not available")
+            log.info("geo monitor not available")
             return
 
         # Request the current SVP cast from the clients prior. Take the first one that comes through.
         self.prj.km_listener.ssp = None
         for client in range(self.prj.s.client_list.num_clients):
-            self.print_info("Testing client %s for position ..." % self.prj.s.client_list.clients[client].IP)
+            log.info("Testing client %s for position ..." % self.prj.s.client_list.clients[client].IP)
             self.prj.ssp_recipient_ip = self.prj.s.client_list.clients[client].IP
             self.prj.get_cast_from_sis()
             if self.prj.km_listener.ssp:
-                self.print_info("... got SSP > valid client")
+                log.info("... got SSP > valid client")
                 break
             else:
-                self.print_info("... not valid SSP > skip this client")
+                log.info("... not valid SSP > skip this client")
 
         if not self.prj.km_listener.ssp:
             msg = "Unable to run the geo-monitor since no casts were retrieved from SIS clients"
@@ -1905,20 +1906,20 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
     def on_tools_refraction_monitor(self, evt):
         """Display a refraction monitor"""
         if not self.ref_monitor:
-            self.print_info("refraction monitor not available")
+            log.info("refraction monitor not available")
             return
 
         # Request the current SVP cast from the clients prior. Take the first one that comes through.
         self.prj.km_listener.ssp = None
         for client in range(self.prj.s.client_list.num_clients):
-            self.print_info("Testing client %s for position ..." % self.prj.s.client_list.clients[client].IP)
+            log.info("Testing client %s for position ..." % self.prj.s.client_list.clients[client].IP)
             self.prj.ssp_recipient_ip = self.prj.s.client_list.clients[client].IP
             self.prj.get_cast_from_sis()
             if self.prj.km_listener.ssp:
-                self.print_info("... got SSP > valid client")
+                log.info("... got SSP > valid client")
                 break
             else:
-                self.print_info("... not valid SSP > skip this client")
+                log.info("... not valid SSP > skip this client")
 
         if not self.prj.km_listener.ssp:
             msg = "Unable to run the ref-monitor since no casts were retrieved from SIS clients"
@@ -1927,7 +1928,7 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
             dlg.Destroy()
             return
 
-        self.print_info("got SIS ssp (samples %s)" % self.prj.km_listener.ssp.num_entries)
+        log.info("got SIS ssp (samples %s)" % self.prj.km_listener.ssp.num_entries)
 
         if self.state == self.gui_state['CLOSED']:
             # Maybe when running in this state, the requested SVP is
@@ -1936,7 +1937,7 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
             # Perhaps should force user to open a profile from SIS?
             # Could then limit ability to launch refraction monitor from the
             # OPEN and SERVER states and have it disabled in the CLOSED state.
-            self.print_info("we are CLOSED!")
+            log.info("we are CLOSED!")
             ssp = self.prj.km_listener.ssp.convert_ssp()
             if self.ref_monitor:
                 self.ref_monitor.set_ssp(ssp)
@@ -1950,7 +1951,7 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
     def on_tools_info_settings(self, evt):
         self.set_viewer.OnShow()
 
-    ## SERVER
+    # ### SERVER ###
 
     def on_tools_server_start(self, event):
         """start the server mode"""
@@ -1976,7 +1977,7 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
             else:  # store since it can change with updates
                 self.prj.server.server_vessel_draft = self.prj.vessel_draft
 
-        self.print_info("Starting server")
+        log.info("Starting server")
 
         # - start the server
         if self.prj.server.check_settings():
@@ -2001,7 +2002,7 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
         self.prj.server_timer.start()
 
     def on_tools_server_send(self, e):
-        self.print_info("forcing server to send profile NOW!")
+        log.info("forcing server to send profile NOW!")
         self.prj.server.force_send = True
 
     def monitor_server(self):
@@ -2028,7 +2029,7 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
         dlg.Destroy()
         if result == wx.ID_CANCEL:
             return
-        self.print_info("User instructed to stop the Server Mode")
+        log.info("User instructed to stop the Server Mode")
 
         self.prj.server.stop()
         self.clear_app()
@@ -2038,18 +2039,19 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
         flag = self.ServerLogMetadata.IsChecked()
 
         # to be able to log the first and the last message
+        # TODO: manage to add sqlite handler
         if flag:
             self.prj.s.log_server_metadata = flag
-            self.prj.server_info("START logging of server metadata")
+            log.info("START logging of server metadata")
         else:
-            self.prj.server_info("END logging of server metadata")
+            log.info("END logging of server metadata")
             self.prj.s.log_server_metadata = flag
 
-    ## REF CAST
+    # ### REF CAST ###
 
     def on_tools_set_reference_cast(self, evt):
         """set a reference cast"""
-        self.print_info("set as reference cast:\n%s" % self.prj.ssp_data)
+        log.info("set as reference cast:\n%s" % self.prj.ssp_data)
 
         self.prj.ssp_reference = copy.deepcopy(self.prj.ssp_data)
         self.prj.ssp_reference_filename = self.prj.filename
@@ -2101,9 +2103,9 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
         """
         manual_path = os.path.abspath(os.path.join(self.here, os.path.pardir, "docs", "manual.pdf"))
         if not os.path.isfile(manual_path):
-            print("missing manual at: %s" % manual_path)
+            log.warning("missing manual at: %s" % manual_path)
             return
-        self.print_info("open manual: %s" % manual_path)
+        log.info("open manual: %s" % manual_path)
         Helper.explore_folder(manual_path)
 
     def on_help_about(self, e):
@@ -2175,7 +2177,7 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
                 latitude = self.prj.km_listener.nav.latitude
                 longitude = self.prj.km_listener.nav.longitude
                 msg = 'User set cast position %lf %lf from SIS input' % (latitude, longitude)
-                self.prj.print_info(msg)
+                log.info(msg)
 
             elif result == wx.ID_NO:
                 latitude = None
@@ -2217,7 +2219,7 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
                         pass
 
             msg = 'Manual user input position: %lf %lf' % (latitude, longitude)
-            self.prj.print_info(msg)
+            log.info(msg)
 
         return [latitude, longitude]
 
@@ -2235,11 +2237,11 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
                 date = self.prj.km_listener.nav.dg_time
                 if date:
                     msg = 'Cast date %s from SIS input' % date
-                    self.prj.print_info(msg)
+                    log.info(msg)
                     return date
                 else:
                     msg = 'Invalid date in SIS datagram'
-                    self.prj.print_info(msg)
+                    log.info(msg)
 
         # date from the machine clock
         msg = "Date required for database lookup.\nUse UTC date from this machine?\nChoose 'no' to enter date manually."
@@ -2249,7 +2251,7 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
         if result == wx.ID_YES:
             date = dt.datetime.utcnow()
             msg = 'User set cast date %s from computer clock' % date
-            self.prj.print_info(msg)
+            log.info(msg)
             return date
 
         # user input date / time
@@ -2279,13 +2281,13 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
                     date = dt.datetime(int(date_string[0:4]), int(date_string[5:7]), int(date_string[8:10]),
                                        int(cast_time[0:2]), int(cast_time[3:5]), int(cast_time[6:8]), 0)
                     msg = 'User input cast date %s' % date
-                    self.prj.print_info(msg)
+                    log.info(msg)
                     return date
                 except ValueError:
                     pass
 
-    ###############################################
-    ###                  DEBUGGING              ###
+    # ###############################################
+    # ###                  DEBUGGING              ###
 
     def _update_state(self, state):
 
@@ -2405,8 +2407,3 @@ class SVPEditor(svpeditor_ui.SVPEditorBase):
             self.prj.vessel_draft = None
 
         self.frame_statusbar.SetStatusText(sis_info_str, 1)
-
-    def print_info(self, debug_info):
-        if not self.verbose:
-            return
-        print("GUI > %s" % debug_info)

@@ -2,6 +2,9 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import math
 import numpy as np
+import logging
+
+log = logging.getLogger(__name__)
 
 from matplotlib import rcParams
 rcParams.update(
@@ -17,20 +20,19 @@ from . import refmonitor_ui
 from ..drivers.km import kmio
 from ..helper import SspError
 from ..ssp_dicts import Dicts
-from ...base.timerthread import TimerThread
+from hydroffice.base.timerthread import TimerThread
 
 
 class RefMonitor(refmonitor_ui.RefMonitorBase):
-    def __init__(self, km_listener, verbose=True):
+    def __init__(self, km_listener):
         refmonitor_ui.RefMonitorBase.__init__(self, None, -1, "")
-        self.verbose = verbose
         self.SetBackgroundColour(wx.WHITE)
 
         self.display_timer = None
         self.km_listener = km_listener
         if not isinstance(km_listener, kmio.KmIO):
             if not km_listener:
-                self.print_info("SIS listener not active")
+                log.info("SIS listener not active")
                 return
             raise SspError("passed wrong instance of listener: %s" % type(km_listener))
 
@@ -157,7 +159,7 @@ class RefMonitor(refmonitor_ui.RefMonitorBase):
         self.correction_axes.cla()
 
         if self.km_listener.xyz88 is None:
-            self.print_info("missing XYZ88 datagram")
+            log.info("missing XYZ88 datagram")
             return
         num_beams = self.km_listener.xyz88.number_beams
         temp_depth = self.km_listener.xyz88.depth.copy()
@@ -229,7 +231,7 @@ class RefMonitor(refmonitor_ui.RefMonitorBase):
         # candidate profile AND applies a user specified corrector term from
         # the slider bar
         self.ssp_corrected = sv_equiv2 + self.ssp_corrector
-        self.print_info("compare: original %6.1f, corrected %6.1f" % (self.ssp_equiv, self.ssp_corrected))
+        log.info("compare: original %6.1f, corrected %6.1f" % (self.ssp_equiv, self.ssp_corrected))
 
         if int(self.ssp_equiv * 10.0) == int(self.ssp_corrected * 10.0):
             for count in range(num_detections):
@@ -252,9 +254,3 @@ class RefMonitor(refmonitor_ui.RefMonitorBase):
         self.correction_axes.plot(self.across_corrected[0:num_detections], self.depth_correction[0:num_detections], 'b')
 
         self.plots.draw()
-
-    def print_info(self, debug_info):
-        if not self.verbose:
-            return
-        print("RMN > %s" % debug_info)
-

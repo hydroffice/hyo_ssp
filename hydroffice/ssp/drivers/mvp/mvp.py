@@ -3,6 +3,9 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import datetime as dt
 import struct
 import numpy as np
+import logging
+
+log = logging.getLogger(__name__)
 
 from ..base_format import BaseFormat, FormatError
 from ...ssp_dicts import Dicts
@@ -22,8 +25,8 @@ class Mvp(BaseFormat):
         "S12": 2
     }
 
-    def __init__(self, header, data_blocks, footer, protocol, fmt, verbose=True, callback_print_func=None):
-        super(Mvp, self).__init__(data_blocks, verbose, callback_print_func)
+    def __init__(self, header, data_blocks, footer, protocol, fmt):
+        super(Mvp, self).__init__(data_blocks)
         self.name = "MVP"
         self.driver = self.name + (".%s" % __version__)
 
@@ -32,65 +35,65 @@ class Mvp(BaseFormat):
         self.protocol = protocol
         self.format = fmt
 
-        self.print_info("reading ...")
-        self.print_info("data blocks: %s" % len(self.file_content))
+        log.info("reading ...")
+        log.info("data blocks: %s" % len(self.file_content))
 
         self.total_data = str()
         self._unify_packets()
 
         try:
-            #self.print_info("got data:\n%s" % self.total_data)
+            # log.info("got data:\n%s" % self.total_data)
             self._read_header(None)
             self._read_body(None)
         except FormatError as e:
-            self.print_error("error in data parsing, did you select the correct data format?")
+            log.error("error in data parsing, did you select the correct data format?")
             raise e
 
     def _read_header(self, lines):
 
-        self.print_info("reading > header")
+        log.info("reading > header")
 
         if lines:
             raise FormatError("passed lines, expected None")
 
         if self.format == self.formats["ASVP"]:
-            self.print_info("parsing header [ASVP]")
+            log.info("parsing header [ASVP]")
             self._parse_asvp_header()
 
         elif self.format == self.formats["CALC"]:
-            self.print_info("parsing header [CALC]")
+            log.info("parsing header [CALC]")
             self._parse_calc_header()
 
         elif self.format == self.formats["S12"]:
-            self.print_info("parsing header [S12]")
+            log.info("parsing header [S12]")
             self._parse_s12_header()
 
         self.probe_type = Dicts.probe_types["MVP"]
         self.sensor_type = Dicts.sensor_types["MVP"]
 
     def _read_body(self, lines):
-        self.print_info("reading > body")
+        log.info("reading > body")
 
         if lines:
             raise FormatError("passed lines, expected None")
 
         # this assume that the user configured the correct format.
         if self.format == self.formats["ASVP"]:
-            self.print_info("parsing body [ASVP]")
+            log.info("parsing body [ASVP]")
             count = self._parse_asvp_body()
 
         elif self.format == self.formats["CALC"]:
-            self.print_info("parsing body [CALC]")
+            log.info("parsing body [CALC]")
             count = self._parse_calc_body()
 
         elif self.format == self.formats["S12"]:
-            self.print_info("parsing body [S12]")
+            log.info("parsing body [S12]")
             count = self._parse_s12_body()
 
         else:
             raise FormatError("unknown format: %s" % self.format)
 
-        self.print_info("read %s samples" % count)
+        log.info("read %s samples" % count)
 
         # Now resize all of them based on how many samples were actually found.
         if self.num_samples != count:
@@ -104,8 +107,8 @@ class Mvp(BaseFormat):
         """unify all the received blocks"""
 
         for block_count in range(len(self.file_content)):
-            self.print_info("- %s block has length %.1f KB"
-                            % (block_count, len(self.file_content[block_count]) / 1024))
+            log.info("%s block has length %.1f KB"
+                     % (block_count, len(self.file_content[block_count]) / 1024))
 
             if self.protocol == self.protocols["NAVO_ISS60"]:
                 block_header = struct.unpack('4s4sIIII20000s4s4s', self.file_content[block_count])
@@ -115,8 +118,8 @@ class Mvp(BaseFormat):
                 total_num_bytes = block_header[5]
                 packet_data = self.file_content[block_count][24:24+num_bytes]
                 self.total_data += packet_data
-                self.print_info("  packet %s/%s [%.1f KB]"
-                                % (packet_number + 1, total_num_packets, total_num_bytes / 1024))
+                log.info("packet %s/%s [%.1f KB]"
+                         % (packet_number + 1, total_num_packets, total_num_bytes / 1024))
             elif self.protocol == self.protocols["UNDEFINED"]:
                 self.total_data += self.file_content[block_count]
             else:
@@ -139,25 +142,25 @@ class Mvp(BaseFormat):
             second = 0
             if (year is not None) and (hour is not None):
                 self.dg_time = dt.datetime(year, month, day, hour, minute, second)
-                self.print_info("date/time: %s" % self.dg_time)
+                log.info("date/time: %s" % self.dg_time)
         except (ValueError, IndexError):
             raise FormatError("unable to parse date/time")
 
         try:
             self.num_samples = int(fields[12])
-            self.print_info("number of samples: %s" % self.num_samples)
+            log.info("number of samples: %s" % self.num_samples)
         except (ValueError, IndexError):
             raise FormatError("unable to parse the number of samples")
 
         try:
             self.latitude = float(fields[5])
-            self.print_info("latitude: %s" % self.latitude)
+            log.info("latitude: %s" % self.latitude)
         except (ValueError, IndexError):
             raise FormatError("unable to parse the latitude")
 
         try:
             self.longitude = float(fields[6])
-            self.print_info("longitude: %s" % self.longitude)
+            log.info("longitude: %s" % self.longitude)
         except (ValueError, IndexError):
             raise FormatError("unable to parse the longitude")
 
@@ -167,7 +170,7 @@ class Mvp(BaseFormat):
         self.salinity = np.zeros(self.num_samples)
 
         self.samples_offset = len(head_line)
-        self.print_info("samples offset: %s" % self.samples_offset)
+        log.info("samples offset: %s" % self.samples_offset)
 
     def _parse_asvp_body(self):
         count = 0
@@ -176,9 +179,9 @@ class Mvp(BaseFormat):
                 self.depth[count], self.speed[count] = line.split()
             except ValueError:
                 if not line:
-                    self.print_info("skipping empty line (count %s)" % count)
+                    log.info("skipping empty line (count %s)" % count)
                 else:
-                    self.print_error("skipping line: %s" % line)
+                    log.error("skipping line: %s" % line)
                 continue
             count += 1
         return count
@@ -190,7 +193,7 @@ class Mvp(BaseFormat):
             day = int(date_field.split("/")[0])
             month = int(date_field.split("/")[1])
             year = int(date_field.split("/")[2])
-            self.print_info("date: %s %s %s" % (year, month, day))
+            log.info("date: %s %s %s" % (year, month, day))
         except (ValueError, IndexError):
             raise FormatError("unable to parse the date")
 
@@ -200,7 +203,7 @@ class Mvp(BaseFormat):
             hour = int(time_field.split(":")[0])
             minute = int(time_field.split(":")[1])
             second = float(time_field.split(":")[2])
-            self.print_info("time: %s %s %s" % (hour, minute, second))
+            log.info("time: %s %s %s" % (hour, minute, second))
         except (ValueError, IndexError):
             raise FormatError("unable to parse the time")
 
@@ -208,7 +211,7 @@ class Mvp(BaseFormat):
             if (year is not None) and (hour is not None):
                 # second truncation applied
                 self.dg_time = dt.datetime(year, month, day, hour, minute, int(second))
-                self.print_info("datetime: %s" % self.dg_time)
+                log.info("datetime: %s" % self.dg_time)
         except (ValueError, IndexError, TypeError) as e:
             raise FormatError("unable to convert to datetime: %s" % e)
 
@@ -221,7 +224,7 @@ class Mvp(BaseFormat):
             self.longitude = lon_deg + lon_min/60.0
             if lon_hemi == "W" or lon_hemi == "w":
                 self.longitude *= -1
-            self.print_info("longitude: %s" % self.longitude)
+            log.info("longitude: %s" % self.longitude)
         except (ValueError, IndexError, TypeError) as e:
             raise FormatError("unable to convert to longitude: %s" % e)
 
@@ -234,7 +237,7 @@ class Mvp(BaseFormat):
             self.latitude = lat_deg + lat_min/60.0
             if lat_hemi == "S" or lat_hemi == "s":
                 self.latitude *= -1
-            self.print_info("latitude: %s" % self.latitude)
+            log.info("latitude: %s" % self.latitude)
         except (ValueError, IndexError, TypeError) as e:
             raise FormatError("unable to convert to longitude: %s" % e)
 
@@ -250,7 +253,7 @@ class Mvp(BaseFormat):
         for line in self.total_data.splitlines()[5:-9]:
             fields = line.split()
             if len(fields) != 3:
-                self.print_info("skipping %s row" % count)
+                log.info("skipping %s row" % count)
                 continue
 
             try:
@@ -258,7 +261,7 @@ class Mvp(BaseFormat):
                 self.speed[count] = float(fields[1])
                 self.temperature[count] = float(fields[2])
             except (ValueError, IndexError, TypeError) as e:
-                self.print_error("skipping %s row: %s" % (count, e))
+                log.error("skipping %s row: %s" % (count, e))
                 continue
             count += 1
 
@@ -280,7 +283,7 @@ class Mvp(BaseFormat):
             second = int(header_fields[3][4:6])
             if (year is not None) and (hour is not None):
                 self.dg_time = dt.datetime(year, month, day, hour, minute, second)
-                self.print_info("date/time: %s" % self.dg_time)
+                log.info("date/time: %s" % self.dg_time)
         except (ValueError, IndexError, TypeError) as e:
             raise FormatError("unable to parse header fields: %s" % e)
 
@@ -298,7 +301,7 @@ class Mvp(BaseFormat):
             self.latitude = lat_deg + lat_min/60.0
             if lat_hemi == "S" or lat_hemi == "s":
                 self.latitude *= -1
-            self.print_info("latitude: %s" % self.latitude)
+            log.info("latitude: %s" % self.latitude)
         except (ValueError, IndexError, TypeError) as e:
             raise FormatError("unable to parse latitude: %s" % e)
 
@@ -310,13 +313,13 @@ class Mvp(BaseFormat):
             self.longitude = lon_deg + lon_min/60.0
             if lon_hemi == "W" or lon_hemi == "w":
                 self.longitude *= -1
-            self.print_info("longitude: %s" % self.longitude)
+            log.info("longitude: %s" % self.longitude)
         except (ValueError, IndexError, TypeError) as e:
             raise FormatError("unable to parse longitude: %s" % e)
 
         try:
             self.num_samples = len(self.total_data.splitlines())
-            self.print_info("number of samples: %s" % self.num_samples)
+            log.info("number of samples: %s" % self.num_samples)
         except (ValueError, IndexError, TypeError) as e:
             raise FormatError("unable to parse the number of samples: %s" % e)
 
@@ -332,7 +335,7 @@ class Mvp(BaseFormat):
             self.temperature[count] = float(header_fields[-3])
             self.salinity[count] = float(header_fields[-2])
         except (ValueError, IndexError, TypeError) as e:
-            self.print_error("skipping first line: %s" % e)
+            log.error("skipping first line: %s" % e)
 
     def _parse_s12_body(self):
         count = 1  # given the first data are on the header
@@ -345,7 +348,7 @@ class Mvp(BaseFormat):
                 self.temperature[count] = float(fields[-3])
                 self.salinity[count] = float(fields[-2])
             except (ValueError, IndexError, TypeError) as e:
-                self.print_error("skipping line %s: %s" % (count, e))
+                log.error("skipping line %s: %s" % (count, e))
                 continue
             count += 1
         return count

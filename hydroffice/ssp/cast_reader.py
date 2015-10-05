@@ -1,6 +1,9 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import os
+import logging
+
+log = logging.getLogger(__name__)
 
 from .ssp import SspData
 from .ssp_dicts import Dicts
@@ -30,8 +33,7 @@ class CastReader(object):
     def _run_fmt_folder_tree(self, fmt_dir, fmt_ext, input_format):
         # top folder
         for root, sub_dirs, dir_files in os.walk(fmt_dir):
-            #dir_files = [f for f in os.listdir(fmt_folder) if os.path.isfile(os.path.join(fmt_folder, f))]
-            print("found %s file in the data folder: %s" % (root, len(dir_files)))
+            log.debug("found %s file in the data folder: %s" % (root, len(dir_files)))
 
             for dir_file in dir_files:
                 dir_file_name, dir_file_ext = os.path.splitext(dir_file)
@@ -39,7 +41,7 @@ class CastReader(object):
                     try:
                         self._run_fmt_load(os.path.join(root, dir_file), input_format)
                     except Exception as e:
-                        print("Error loading %s: %s" % (dir_file, e))
+                        log.error("Error loading %s: %s" % (dir_file, e))
                         self.fail_count += 1
                         continue
 
@@ -50,13 +52,13 @@ class CastReader(object):
         self._run_fmt_load(cast_file, input_format)
 
     def _run_fmt_load(self, load_file, input_format):
-        print("\n  > %s [%s]" % (load_file, input_format))
+        log.debug("%s [%s]" % (load_file, input_format))
         # read the different file formats
         ssp = SspData()
         ssp.read_input_file_by_format(load_file, input_format)
 
         if not ssp.date_time:
-            print("missing date/time: %s" % load_file)
+            log.warning("missing date/time: %s" % load_file)
 
         if ssp.data.shape[1] == 0:
             raise SspError("not retrieved samples in reading: %s" % load_file)
@@ -73,7 +75,7 @@ class CastReader(object):
 
         for fmt in Dicts.import_formats:
             fmt_ext = Dicts.import_extensions[Dicts.import_formats[fmt]]
-            print("\n>>> testing %s (%s)" % (fmt, fmt_ext))
+            log.debug("testing %s (%s)" % (fmt, fmt_ext))
 
             if "_" in fmt:
                 base_folder, sub_folder = fmt.lower().split("_", 1)
@@ -82,9 +84,9 @@ class CastReader(object):
                 fmt_folder = os.path.abspath(os.path.join(data_root_folder, fmt.lower()))
 
             if not os.path.exists(fmt_folder):
-                print("  > invalid data path: %s" % fmt_folder)
+                log.debug("invalid data path: %s" % fmt_folder)
                 continue
-            #print("  > reading test data from: %s" % fmt_folder)
+            log.debug("reading test data from: %s" % fmt_folder)
 
             self._run_fmt_folder_tree(fmt_folder, fmt_ext, Dicts.import_formats[fmt])
 

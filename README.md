@@ -1,7 +1,9 @@
-hyo_ssp
+HydrOffice SSP
 ===========
 
-The `hyo_ssp` package can be used as a starting point to build a hydro-package.
+![logo](https://bitbucket.org/ccomjhc/hyo_ssp/raw/tip/hydroffice/ssp/gui/media/favicon.png)
+
+The `hyo_ssp` package can be used to deal with sound speed profiles.
 
 About HydrOffice
 -----------------------
@@ -18,10 +20,8 @@ Freezing
 
 ### Pyinstaller
 
-* `pyinstaller --clean -y -i SSP.ico --hidden-import=pkg_resources -F SSP.py`
-* add `media_tree = Tree('hydroffice/ssp/gui/media', prefix='hydroffice/ssp/gui/media')`
-* add `manual_tree = Tree('hydroffice/ssp/docs', prefix='hydroffice/ssp/docs', excludes=['*.docx',])`
-* `pyinstaller --clean -y SSP.spec`
+* `pyinstaller --clean -y SSP.1file.spec`
+* `pyinstaller --clean -y SSP.1folder.spec`
 
 Useful Mercurial commands
 -----------------------
@@ -43,6 +43,6 @@ Useful Mercurial commands
 Other info
 ----------
 
-* Bitbucket: https://bitbucket.org/gmasetti/hyo_ssp
-* Project page: http://ccom.unh.edu/project/hydroffice
-* License: BSD-like license (See COPYING)
+* Bitbucket: [https://bitbucket.org/ccomjhc/hyo_ssp](https://bitbucket.org/ccomjhc/hyo_ssp)
+* Project page: [http://ccom.unh.edu/project/hydroffice](http://ccom.unh.edu/project/hydroffice)
+* License: BSD-like license (See [COPYING](https://bitbucket.org/ccomjhc/hyo_ssp/raw/tip/COPYING.txt))

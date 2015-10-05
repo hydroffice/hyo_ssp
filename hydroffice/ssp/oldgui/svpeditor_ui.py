@@ -2,6 +2,10 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import wx
 
+import logging
+
+log = logging.getLogger(__name__)
+
 MENU_FILE = wx.NewId()
 MENU_VIEW = wx.NewId()
 MENU_INTERACT = wx.NewId()
@@ -159,7 +163,7 @@ class SVPEditorBase(wx.Frame):
         # Menu Bar
         self.SVPEditorFrame_menubar = wx.MenuBar()
 
-        # ## FILE ###
+        # ### FILE ###
         self.FileMenu = wx.Menu()
 
         # File/Import
@@ -263,7 +267,7 @@ class SVPEditorBase(wx.Frame):
         self.FileMenu.AppendItem(self.FileExit)
         self.SVPEditorFrame_menubar.Append(self.FileMenu, "File")
 
-        ### VIEW ###
+        # ### VIEW ###
         self.ViewMenu = wx.Menu()
         self.ResetView = wx.MenuItem(self.ViewMenu, MENU_VIEW_RESET, "Reset plot view",
                                      "Reset the plot view", wx.ITEM_NORMAL)
@@ -280,7 +284,7 @@ class SVPEditorBase(wx.Frame):
         self.ViewMenu.AppendItem(self.HideDepth)
         self.SVPEditorFrame_menubar.Append(self.ViewMenu, "View")
 
-        ### Process ###
+        # ### Process ###
         self.ProcessMenu = wx.Menu()
         self.ProcessLoadSal = wx.MenuItem(self.ProcessMenu, MENU_PROC_LOAD_SAL, "Load salinity",
                                           "Load salinity from reference cast [XBT only]", wx.ITEM_NORMAL)
@@ -335,15 +339,15 @@ class SVPEditorBase(wx.Frame):
         # self.ProcessMenu.AppendItem(self.ProcessExpressMode)
         self.SVPEditorFrame_menubar.Append(self.ProcessMenu, "Process")
 
-        # ## DATABASE ###
+        # ### DATABASE ###
         self.DbMenu = wx.Menu()
         # Query
         DbQuery = wx.Menu()
         self.DbQueryInternalDb = wx.MenuItem(DbQuery, MENU_DB_QUERY_INTERNAL_DB, "Internal DB",
-                                               "Retrieve the locally stored SSP", wx.ITEM_NORMAL)
+                                             "Retrieve the locally stored SSP", wx.ITEM_NORMAL)
         DbQuery.AppendItem(self.DbQueryInternalDb)
         self.DbQueryExternalDb = wx.MenuItem(DbQuery, MENU_DB_QUERY_EXTERNAL_DB, "External DB",
-                                               "Retrieve a SSP stored in the select DB", wx.ITEM_NORMAL)
+                                             "Retrieve a SSP stored in the select DB", wx.ITEM_NORMAL)
         DbQuery.AppendItem(self.DbQueryExternalDb)
         self.DbMenu.AppendMenu(MENU_DB_QUERY, "Query from", DbQuery,
                                "Retrieve SSP info from databases")
@@ -385,7 +389,7 @@ class SVPEditorBase(wx.Frame):
 
         self.SVPEditorFrame_menubar.Append(self.DbMenu, "Database")
 
-        ### Tools ###
+        # ### Tools ###
         self.ToolsMenu = wx.Menu()
         ServerMenu = wx.Menu()
         self.ToolsServerStart = wx.MenuItem(ServerMenu, MENU_SERVER_START, "Start server",
@@ -538,265 +542,265 @@ class SVPEditorBase(wx.Frame):
         self.SetSize((1000, 800))
 
     def on_file_query_woa09(self, event):
-        print("Event handler 'on_file_query_woa09' not implemented!")
+        log.info("Event handler 'on_file_query_woa09' not implemented!")
         event.Skip()
 
     def on_file_query_rtofs(self, event):
-        print("Event handler 'on_file_query_rtofs' not implemented!")
+        log.info("Event handler 'on_file_query_rtofs' not implemented!")
         event.Skip()
 
     def on_file_query_sis(self, event):
-        print("Event handler 'on_file_query_sis' not implemented!")
+        log.info("Event handler 'on_file_query_sis' not implemented!")
         event.Skip()
 
     def on_process_store_db(self, event):
-        print("Event handler 'on_process_store_db' not implemented!")
+        log.info("Event handler 'on_process_store_db' not implemented!")
         event.Skip()
 
     def on_process_log_metadata(self, event):
-        print("Event handler 'on_process_log_metadata' not implemented!")
+        log.info("Event handler 'on_process_log_metadata' not implemented!")
         event.Skip()
 
     def on_tools_set_reference_cast(self, event):
-        print("Event handler 'on_tools_set_reference_cast' not implemented!")
+        log.info("Event handler 'on_tools_set_reference_cast' not implemented!")
         event.Skip()
 
     def on_tools_edit_reference_cast(self, event):
-        print("Event handler 'on_tools_edit_reference_cast' not implemented!")
+        log.info("Event handler 'on_tools_edit_reference_cast' not implemented!")
         event.Skip()
 
     def on_tools_clear_reference_cast(self, event):
-        print("Event handler 'on_tools_clear_reference_cast' not implemented!")
+        log.info("Event handler 'on_tools_clear_reference_cast' not implemented!")
         event.Skip()
 
     def on_file_import_castaway(self, event):
-        print("Event handler 'on_file_import_castaway' not implemented!")
+        log.info("Event handler 'on_file_import_castaway' not implemented!")
         event.Skip()
 
     def on_file_import_digibar_pro(self, event):
-        print("Event handler 'on_file_import_digibar_pro' not implemented!")
+        log.info("Event handler 'on_file_import_digibar_pro' not implemented!")
         event.Skip()
 
     def on_file_import_digibar_s(self, event):
-        print("Event handler 'on_file_import_digibar_s' not implemented!")
+        log.info("Event handler 'on_file_import_digibar_s' not implemented!")
         event.Skip()
 
     def on_file_import_sippican(self, event):
-        print("Event handler 'on_file_import_sippican' not implemented!")
+        log.info("Event handler 'on_file_import_sippican' not implemented!")
         event.Skip()
 
     def on_file_import_seabird(self, event):
-        print("Event handler 'on_file_import_seabird' not implemented!")
+        log.info("Event handler 'on_file_import_seabird' not implemented!")
         event.Skip()
 
     def on_file_import_turo(self, event):
-        print("Event handler 'on_file_import_turo' not implemented!")
+        log.info("Event handler 'on_file_import_turo' not implemented!")
         event.Skip()
 
     def on_file_import_unb(self, event):
-        print("Event handler 'on_file_import_unb' not implemented!")
+        log.info("Event handler 'on_file_import_unb' not implemented!")
         event.Skip()
 
     def on_file_import_valeport_midas(self, event):
-        print("Event handler 'on_file_import_valeport_midas' not implemented!")
+        log.info("Event handler 'on_file_import_valeport_midas' not implemented!")
         event.Skip()
 
     def on_file_import_valeport_monitor(self, event):
-        print("Event handler 'on_file_import_valeport_monitor' not implemented!")
+        log.info("Event handler 'on_file_import_valeport_monitor' not implemented!")
         event.Skip()
 
     def on_file_import_valeport_minisvp(self, event):
-        print("Event handler 'on_file_import_valeport_minisvp' not implemented!")
+        log.info("Event handler 'on_file_import_valeport_minisvp' not implemented!")
         event.Skip()
 
     def on_file_import_idronaut(self, event):
-        print("Event handler 'on_file_import_idronaut' not implemented!")
+        log.info("Event handler 'on_file_import_idronaut' not implemented!")
         event.Skip()
 
     def on_file_import_saiv(self, event):
-        print("Event handler 'on_file_import_saiv' not implemented!")
+        log.info("Event handler 'on_file_import_saiv' not implemented!")
         event.Skip()
 
     def on_file_export_cast(self, event):
-        print("Event handler 'on_file_export_cast' not implemented!")
+        log.info("Event handler 'on_file_export_cast' not implemented!")
         event.Skip()
 
     def on_file_export_asvp(self, event):
-        print("Event handler 'on_file_export_asvp' not implemented!")
+        log.info("Event handler 'on_file_export_asvp' not implemented!")
         event.Skip()
 
     def on_file_export_pro(self, event):
-        print("Event handler 'on_file_export_pro' not implemented!")
+        log.info("Event handler 'on_file_export_pro' not implemented!")
         event.Skip()
 
     def on_file_export_vel(self, event):
-        print("Event handler 'on_file_export_vel' not implemented!")
+        log.info("Event handler 'on_file_export_vel' not implemented!")
         event.Skip()
 
     def on_file_export_ixblue(self, event):
-        print("Event handler 'on_file_export_ixblue' not implemented!")
+        log.info("Event handler 'on_file_export_ixblue' not implemented!")
         event.Skip()
 
     def on_file_export_hips(self, event):
-        print("Event handler 'on_file_export_hips' not implemented!")
+        log.info("Event handler 'on_file_export_hips' not implemented!")
         event.Skip()
 
     def on_file_export_unb(self, event):
-        print("Event handler 'on_file_export_unb' not implemented!")
+        log.info("Event handler 'on_file_export_unb' not implemented!")
         event.Skip()
 
     def on_file_export_elac(self, event):
-        print("Event handler 'on_file_export_elac' not implemented!")
+        log.info("Event handler 'on_file_export_elac' not implemented!")
         event.Skip()
 
     def on_file_export_csv(self, event):
-        print("Event handler 'on_file_export_csv' not implemented!")
+        log.info("Event handler 'on_file_export_csv' not implemented!")
         event.Skip()
 
     def on_file_clear(self, event):
-        print("Event handler 'on_file_clear' not implemented!")
+        log.info("Event handler 'on_file_clear' not implemented!")
         event.Skip()
 
     def on_file_exit(self, event):
-        print("Event handler 'on_file_exit' not implemented!")
+        log.info("Event handler 'on_file_exit' not implemented!")
         event.Skip()
 
     def on_plot_zoom(self, event):
-        print("Event handler 'on_plot_zoom' not implemented!")
+        log.info("Event handler 'on_plot_zoom' not implemented!")
         event.Skip()
 
     def on_plot_flag(self, event):
-        print("Event handler 'on_plot_flag' not implemented!")
+        log.info("Event handler 'on_plot_flag' not implemented!")
         event.Skip()
 
     def on_plot_unflag(self, event):
-        print("Event handler 'on_plot_unflag' not implemented!")
+        log.info("Event handler 'on_plot_unflag' not implemented!")
         event.Skip()
 
     def on_plot_insert(self, event):
-        print("Event handler 'on_plot_insert' not implemented!")
+        log.info("Event handler 'on_plot_insert' not implemented!")
         event.Skip()
 
     def on_reset_view(self, event):
-        print("Event handler 'on_reset_view' not implemented!")
+        log.info("Event handler 'on_reset_view' not implemented!")
         event.Skip()
 
     def on_view_hide_woa(self, event):
-        print("Event handler 'on_view_hide_woa' not implemented!")
+        log.info("Event handler 'on_view_hide_woa' not implemented!")
         event.Skip()
 
     def on_view_hide_flagged(self, event):
-        print("Event handler 'on_view_hide_flagged' not implemented!")
+        log.info("Event handler 'on_view_hide_flagged' not implemented!")
         event.Skip()
 
     def on_view_hide_depth(self, event):
-        print("Event handler 'on_view_hide_depth' not implemented!")
+        log.info("Event handler 'on_view_hide_depth' not implemented!")
         event.Skip()
 
     def on_tools_refraction_monitor(self, event):
-        print("Event handler 'on_tools_refraction_monitor' not implemented!")
+        log.info("Event handler 'on_tools_refraction_monitor' not implemented!")
         event.Skip()
 
     def on_tools_geo_monitor(self, event):
-        print("Event handler 'on_tools_geo_monitor' not implemented!")
+        log.info("Event handler 'on_tools_geo_monitor' not implemented!")
         event.Skip()
 
     # def on_process_express_mode(self, event):
-    # print("Event handler `OnToolsExpress' not implemented!")
+    # log.info("Event handler `OnToolsExpress' not implemented!")
     #     event.Skip()
 
     def on_process_load_salinity(self, event):
-        print("Event handler 'on_process_load_salinity' not implemented!")
+        log.info("Event handler 'on_process_load_salinity' not implemented!")
         event.Skip()
 
     def on_process_load_temp_and_sal(self, event):
-        print("Event handler 'on_process_load_temp_and_sal' not implemented!")
+        log.info("Event handler 'on_process_load_temp_and_sal' not implemented!")
         event.Skip()
 
     def on_process_load_surface_ssp(self, event):
-        print("Event handler 'on_process_load_surface_ssp' not implemented!")
+        log.info("Event handler 'on_process_load_surface_ssp' not implemented!")
         event.Skip()
 
     def on_process_extend(self, event):
-        print("Event handler 'on_process_extend' not implemented!")
+        log.info("Event handler 'on_process_extend' not implemented!")
         event.Skip()
 
     def on_process_preview_thinning(self, event):
-        print("Event handler 'on_process_preview_thinning' not implemented!")
+        log.info("Event handler 'on_process_preview_thinning' not implemented!")
         event.Skip()
 
     def on_process_send_profile(self, event):
-        print("Event handler 'on_process_send_profile' not implemented!")
+        log.info("Event handler 'on_process_send_profile' not implemented!")
         event.Skip()
 
     def on_process_redo_processing(self, event):
-        print("Event handler 'on_process_redo_processing' not implemented!")
+        log.info("Event handler 'on_process_redo_processing' not implemented!")
         event.Skip()
 
     def on_db_query_internal_db(self, event):
-        print("Event handler 'on_db_query_internal' not implemented!")
+        log.info("Event handler 'on_db_query_internal' not implemented!")
         event.Skip()
 
     def on_db_query_external_db(self, event):
-        print("Event handler 'on_db_query_external' not implemented!")
+        log.info("Event handler 'on_db_query_external' not implemented!")
         event.Skip()
 
     def on_db_delete_internal(self, event):
-        print("Event handler 'on_db_delete_internal' not implemented!")
+        log.info("Event handler 'on_db_delete_internal' not implemented!")
         event.Skip()
 
     def on_db_delete_external(self, event):
-        print("Event handler 'on_db_delete_external' not implemented!")
+        log.info("Event handler 'on_db_delete_external' not implemented!")
         event.Skip()
 
     def on_db_export_shp(self, event):
-        print("Event handler 'on_db_export_shp' not implemented!")
+        log.info("Event handler 'on_db_export_shp' not implemented!")
         event.Skip()
 
     def on_db_export_kml(self, event):
-        print("Event handler 'on_db_export_kml' not implemented!")
+        log.info("Event handler 'on_db_export_kml' not implemented!")
         event.Skip()
 
     def on_db_export_csv(self, event):
-        print("Event handler 'on_db_export_csv' not implemented!")
+        log.info("Event handler 'on_db_export_csv' not implemented!")
         event.Skip()
 
     def on_db_plot_map_ssp(self, event):
-        print("Event handler 'on_db_plot_map_ssp' not implemented!")
+        log.info("Event handler 'on_db_plot_map_ssp' not implemented!")
         event.Skip()
 
     def on_db_plot_daily_ssp(self, event):
-        print("Event handler 'on_db_plot_daily_ssp' not implemented!")
+        log.info("Event handler 'on_db_plot_daily_ssp' not implemented!")
         event.Skip()
 
     def on_db_save_daily_ssp(self, event):
-        print("Event handler 'on_db_save_daily_ssp' not implemented!")
+        log.info("Event handler 'on_db_save_daily_ssp' not implemented!")
         event.Skip()
 
     def on_tools_info_settings(self, event):
-        print("Event handler 'on_tools_info_settings' not implemented!")
+        log.info("Event handler 'on_tools_info_settings' not implemented!")
         event.Skip()
 
     def on_tools_server_start(self, event):
-        print("Event handler 'on_tools_server_start' not implemented!")
+        log.info("Event handler 'on_tools_server_start' not implemented!")
         event.Skip()
 
     def on_tools_server_send(self, event):
-        print("Event handler 'on_tools_server_send' not implemented!")
+        log.info("Event handler 'on_tools_server_send' not implemented!")
         event.Skip()
 
     def on_tools_server_stop(self, event):
-        print("Event handler 'on_tools_server_stop' not implemented!")
+        log.info("Event handler 'on_tools_server_stop' not implemented!")
         event.Skip()
 
     def on_tools_server_log_metadata(self, event):
-        print("Event handler 'on_tools_server_log_metadata' not implemented!")
+        log.info("Event handler 'on_tools_server_log_metadata' not implemented!")
         event.Skip()
 
     def on_help_manual(self, event):
-        print("Event handler 'on_help_manual' not implemented!")
+        log.info("Event handler 'on_help_manual' not implemented!")
         event.Skip()
 
     def on_help_about(self, event):
-        print("Event handler 'on_help_about' not implemented!")
+        log.info("Event handler 'on_help_about' not implemented!")
         event.Skip()

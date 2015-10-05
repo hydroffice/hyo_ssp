@@ -4,12 +4,13 @@ import os
 import time
 import datetime as dt
 import numpy as np
+import logging
 
-from hydroffice.base.log_db import LogEntry
+log = logging.getLogger(__name__)
+
 from hydroffice.base import project
 from hydroffice.base.timerthread import TimerThread
 
-from .log_db import SspLogDb
 from .server import Server
 from .helper import Helper
 from .helper import SspError
@@ -25,23 +26,14 @@ from .atlases import rtofs
 
 
 class Project(project.Project):
-    """
-    SSP project
-    """
+    """ SSP project """
 
     here = os.path.abspath(os.path.dirname(__file__))
 
-    def __init__(self, with_listeners=True, with_woa09=True, with_rtofs=True,
-                 verbose=False, verbose_config=False,
-                 callback_debug_print=None):
-        super(Project, self).__init__(Helper.default_projects_folder(), verbose)
-
-        self.verbose_config = verbose_config
-        self.callback_debug_print = callback_debug_print
-        self.log_db = SspLogDb()
+    def __init__(self, with_listeners=True, with_woa09=True, with_rtofs=True):
+        super(Project, self).__init__(Helper.default_projects_folder())
 
         self.server = Server(self)
-
         self.with_listeners = with_listeners
 
         # atlases settings
@@ -73,7 +65,7 @@ class Project(project.Project):
         self.ssp_reference = None
         self.ssp_reference_filename = ""
 
-        self.s = Settings(verbose=verbose_config)
+        self.s = Settings()
         self.s.load_config()
 
         self.ssp_data = SspData()
@@ -109,7 +101,7 @@ class Project(project.Project):
             self._init_timers()
 
     def init_listeners(self):
-        """build listeners and start to listen"""
+        """ build listeners and start to listen """
 
         self.km_listener = KmIO(self.s.km_listen_port, [0x50, 0x52, 0x55, 0x58], self.s.km_listen_timeout)
         self.km_listener.start_listen()
@@ -127,7 +119,7 @@ class Project(project.Project):
         # self.mvp_controller.start_listen()
 
     def _init_timers(self):
-        """initialize timers"""
+        """ initialize timers """
         # timer to monitor for Sippican inputs
         self.sippican_timer = TimerThread(self._monitor_sippican, timing=3)
         self.sippican_timer.start()
@@ -143,8 +135,8 @@ class Project(project.Project):
     def open_file_format(self, filename, input_format, callback_date=None, callback_pos=None):
         filename_prefix = os.path.splitext(filename)[0]
         filename_suffix = os.path.splitext(filename)[1]
-        self.print_info("filename prefix: %s" % filename_prefix)
-        self.print_info("filename suffix: %s" % filename_suffix)
+        log.info("filename prefix: %s" % filename_prefix)
+        log.info("filename suffix: %s" % filename_suffix)
 
         # read the different file formats
         ssp = SspData()
@@ -223,7 +215,7 @@ class Project(project.Project):
             self.ssp_data.calc_salinity()
 
         self.has_ssp_loaded = True
-        self.print_info("resulting ssp:\n%s" % self.ssp_data)
+        log.info("resulting ssp:\n%s" % self.ssp_data)
 
         if self.woa09_atlas_loaded:
             self.ssp_woa, self.ssp_woa_min, self.ssp_woa_max = \
@@ -238,8 +230,7 @@ class Project(project.Project):
 
     def _monitor_sippican(self):
         if not self.sippican_listener.cast:
-            # if self.verbose:
-            #     print("SIP @ not new MVP cast")
+            # log.debug("not new SIPPICAN cast")
             return
 
         # Deal with the cast right away
@@ -276,16 +267,15 @@ class Project(project.Project):
     def _monitor_mvp(self):
 
         if not self.mvp_listener.cast:
-            # if self.verbose:
-            #     print("MVP @ not new MVP cast")
+            # log.debug("not new MVP cast")
             return
 
         try:
             new_sv = self.mvp_listener.cast.convert_ssp()
-            print("MBP @ new cast at date/time: %s" % new_sv.date_time)
+            log.info("MBP @ new cast at date/time: %s" % new_sv.date_time)
         except SspError as e:
-            print("MBP @ failure in parsing MVP cast, the expected format was %s > %s"
-                  % (self.s.mvp_format, e))
+            log.info("MBP @ failure in parsing MVP cast, the expected format was %s > %s"
+                     % (self.s.mvp_format, e))
             return
 
         if self.server.is_running:
@@ -315,17 +305,16 @@ class Project(project.Project):
         self.mvp_listener.cast = None
 
     def _monitor_mvp_sensors(self):
-        if self.verbose:
-            print("MVS @ date: %s" % self.mvp_controller.get_date())
-            print("MVS @ fish: %s" % self.mvp_controller.get_fish())
-            print("MVS @ nav: %s" % self.mvp_controller.get_nav())
+        log.info("MVS @ date: %s" % self.mvp_controller.get_date())
+        log.info("MVS @ fish: %s" % self.mvp_controller.get_fish())
+        log.info("MVS @ nav: %s" % self.mvp_controller.get_nav())
 
     def release(self):
         if not self.with_listeners:
             return
 
         if self.server.is_running:
-            self.print_info("stopping SIS server")
+            log.info("Stopping SIS server")
             self.server.stop()
 
         self.stop_listeners()
@@ -344,27 +333,28 @@ class Project(project.Project):
 
         # close logging and disconnect
         if self.s.log_processing_metadata:
-            self.print_info("END logging of processing metadata")
+            log.info("END logging of processing metadata")
         if self.s.log_server_metadata:
-            self.server_info("END logging of server metadata")
-        self.log_db.disconnect()
+            log.info("END logging of server metadata")
+        # TODO disconnect sqlite handler
+        # self.log_db.disconnect()
 
     def stop_listeners(self):
-        self.print_info("stop listeners")
+        log.info("Stop listeners")
         self.km_listener.stop_listen()
         self.sippican_listener.stop_listen()
         self.mvp_listener.stop_listen()
         # self.mvp_controller.stop_listen()
 
     def has_running_listeners(self):
-        """check if all listeners are running"""
+        """ Check if all listeners are running """
         if not self.with_listeners:
             return False
         running_flag = self.sippican_listener.listening and self.km_listener.listening and self.mvp_listener.listening
         return running_flag
 
     def load_woa09_atlas(self):
-        """Load the WOA grid"""
+        """ Load the WOA grid """
         try:
             self.woa09_atlas.load_grids(self.s.woa_path)
 
@@ -374,7 +364,7 @@ class Project(project.Project):
         self.woa09_atlas_loaded = True
 
     def load_rtofs_atlas(self):
-        """Load the RTOFS grid"""
+        """ Load the RTOFS grid """
         try:
             self.rtofs_atlas.load_grids(dt.datetime.utcnow())
 
@@ -385,28 +375,26 @@ class Project(project.Project):
         return True
 
     def send_cast(self, client, kng_fmt):
-
-        self.print_info("Transmitting cast to %s (port: %d)" % (client.IP, client.port))
+        log.info("Transmitting cast to %s (port: %d)" % (client.IP, client.port))
 
         if client.protocol == "SIS":
             self.km_listener.ssp = None
 
-        self.print_info("Sending to %s %s [format %s, protocol %s]"
-                        % (client.IP, client.port, kng_fmt, client.protocol))
+        log.info("Sending to %s %s [format %s, protocol %s]" % (client.IP, client.port, kng_fmt, client.protocol))
         client.send_cast(self.ssp_data, kng_fmt)
-        self.print_info("Just sent:\n%s" % self.ssp_data.tx_data)
+        log.info("Just sent:\n%s" % self.ssp_data.tx_data)
 
         if client.protocol != "SIS":
-            self.print_info("Transmitted cast, protocol does not allow verification")
+            log.info("Transmitted cast, protocol does not allow verification")
             time.sleep(5)
             return True
 
-        self.print_info("waiting for receipt confirmation...")
+        log.info("waiting for receipt confirmation...")
         # Give SIS some time to catch it and re-transmit it
         wait = 0
         while (not self.km_listener.ssp) and (wait < self.s.rx_max_wait_time):
             time.sleep(1)
-            self.print_info("waiting %s s ..." % wait)
+            log.info("waiting %s s ..." % wait)
             wait += 1
 
         # Split up the profile that was sent into depth/speed pairs
@@ -436,21 +424,21 @@ class Project(project.Project):
             # so can't compare times to ensure it's the same profile.  Comparing the sound speeds instead
             speeds_received = np.interp(depths, self.km_listener.ssp.depth, self.km_listener.ssp.speed)
             max_diff = max(abs(speeds - speeds_received))
-            self.print_info("Casts differ by %.1f m/s" % max_diff)
+            log.info("Casts differ by %.1f m/s" % max_diff)
 
             if max_diff < 0.2:
                 self.server.last_sent_ssp_time = self.km_listener.ssp.acquisition_time
                 return True
 
             else:
-                self.print_info("Reception not confirmed > Too big delta")
+                log.info("Reception not confirmed > Too big delta")
                 return False
         else:
-            self.print_info("Reception not confirmed > Unable to catch the back datagram")
+            log.info("Reception not confirmed > Unable to catch the back datagram")
             return False
 
     def formats_export(self, mode):
-        self.print_info("export mode: %s" % mode)
+        log.info("export mode: %s" % mode)
 
         export_directory = None
         if mode == "USER":
@@ -468,7 +456,7 @@ class Project(project.Project):
                 num_exported += 1
 
         if num_exported:
-            self.print_info("exported %s files" % num_exported)
+            log.info("exported %s files" % num_exported)
 
     def _format_export(self, export_directory, filename_prefix, ssp_format, mode):
         # TODO: check the various configuration outputs
@@ -482,7 +470,7 @@ class Project(project.Project):
         elif mode == "SERVER":
             append_caris_file = self.s.server_append_caris_file
 
-        self.print_info("output filename: %s" % ssp_output)
+        log.info("output filename: %s" % ssp_output)
 
         data = self.ssp_data.convert(ssp_format)
         if not data:
@@ -509,7 +497,7 @@ class Project(project.Project):
         self.s.filename_prefix = ""
 
     def count_export_formats(self):
-        """helper function to count the number of formats in export"""
+        """ helper function to count the number of formats in export """
         num_formats_to_export = 0
         for fmt in self.s.export_formats.keys():
             if self.s.export_formats[fmt]:
@@ -519,84 +507,20 @@ class Project(project.Project):
     # ########### SIS ##############
 
     def get_cast_from_sis(self):
-        """Retrieve a cast from SIS"""
+        """ Retrieve a cast from SIS """
         self.km_listener.ssp = None
 
-        self.print_info("requesting IUR to: %s" % self.ssp_recipient_ip)
+        log.info("requesting IUR to: %s" % self.ssp_recipient_ip)
         self.km_listener.request_iur(self.ssp_recipient_ip)
 
         # Give SIS some time to transmit it
         wait = 0
-        self.print_info("waiting ...")
+        log.info("waiting ...")
         # This can require time when running on K-Sync with all the sounders waiting in the queue to fire in turn.
         max_wait = 60
         while (not self.km_listener.ssp) and (wait < max_wait):
-            self.print_info("... %s seconds" % wait)
+            log.info("... %s seconds" % wait)
             time.sleep(2)
             wait += 2
-        self.print_info("waited for %s seconds" % wait)
-        self.print_info("got a cast:\n\t%s" % self.km_listener.ssp)
-
-    # ########## DEBUGGING ############
-
-    def print_info(self, info):
-        if self.verbose:
-            if self.callback_debug_print:
-                self.callback_debug_print("PRJ > %s" % info)
-            else:
-                print("PRJ > %s" % info)
-
-        if self.s.log_processing_metadata:
-            self.log_db.add_entry(LogEntry(log_content=info, log_type=Dicts.log_types['info']))
-
-    def print_warning(self, info):
-        if self.verbose:
-            if self.callback_debug_print:
-                self.callback_debug_print("WARNING > %s" % info)
-            else:
-                print("PRJ > WARNING > %s" % info)
-
-        if self.s.log_processing_metadata:
-            self.log_db.add_entry(LogEntry(log_content=info, log_type=Dicts.log_types['warning']))
-
-    def print_error(self, info):
-        if self.verbose:
-            if self.callback_debug_print:
-                self.callback_debug_print("ERROR > %s" % info)
-            else:
-                print("PRJ > ERROR > %s" % info)
-
-        if self.s.log_processing_metadata:
-            self.log_db.add_entry(LogEntry(log_content=info, log_type=Dicts.log_types['error']))
-
-    # server
-
-    def server_info(self, info):
-        if self.verbose:
-            if self.callback_debug_print:
-                self.callback_debug_print("%s" % info)
-            else:
-                print("SRV > %s" % info)
-
-        if self.s.log_server_metadata:
-            self.log_db.add_entry(LogEntry(log_content=info, log_type=Dicts.log_types['server_info']))
-
-    def server_warning(self, info):
-        if self.verbose:
-            if self.callback_debug_print:
-                self.callback_debug_print("WARNING: %s" % info)
-            else:
-                print("SRV > WARNING > %s" % info)
-
-        if self.s.log_server_metadata:
-            self.log_db.add_entry(LogEntry(log_content=info, log_type=Dicts.log_types['server_warning']))
-
-    def server_error(self, info):
-        if self.verbose:
-            if self.callback_debug_print:
-                self.callback_debug_print("ERROR: %s" % info)
-            else:
-                print("SRV > ERROR > %s" % info)
-
-        if self.s.log_server_metadata:
-            self.log_db.add_entry(LogEntry(log_content=info, log_type=Dicts.log_types['server_error']))
+        log.info("waited for %s seconds" % wait)
+        log.info("got a cast:\n\t%s" % self.km_listener.ssp)

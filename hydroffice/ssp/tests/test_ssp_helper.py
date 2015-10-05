@@ -29,16 +29,11 @@ class TestHelper(object):
     from hydroffice.ssp.helper import Helper
     hlp = Helper()
 
-    def test_has_verbose(self):
-        assert hasattr(self.hlp, 'verbose')
-
-    def test_has_set_verbose(self):
+    def test_helper_has_explore_folder(self):
+        from hydroffice.base.helper import Helper
         import inspect
-        assert inspect.ismethod(self.hlp.set_verbose)
-
-    def test_has_explore_folder(self):
-        import inspect
-        assert inspect.isfunction(self.hlp.explore_folder)  # static method
+        # class method
+        assert inspect.ismethod(Helper.explore_folder) and (Helper.explore_folder.__self__ is Helper)
 
     def test_is_windows(self):
         assert isinstance(self.hlp.is_windows(), bool)
@@ -67,7 +62,4 @@ class TestHelper(object):
         assert len(self.hlp.get_root_path()) >= 1  # at least /
         assert len(self.hlp.get_root_path()) <= 3  # maxixum C:\
 
-    def find_hyo_inst_folders(self):
-        assert len(self.hlp.find_hyo_inst_folders()) >= 0  # in case HyO not installed
-
-    ### END OF SHARED WITH BASE.HELPER ###
+    # ### END OF SHARED WITH BASE.HELPER ###

@@ -1,14 +1,15 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import os
+import logging
+
+log = logging.getLogger(__name__)
 
 from hydroffice.base import helper
 
 
 class SspError(helper.HyOError):
-    """
-    Error raised for HCellScan issues
-    """
+    """ Error raised for SSP issues """
     def __init__(self, message, *args):
         self.message = message
         # allow users initialize misc. arguments as any other builtin Error
@@ -16,18 +17,14 @@ class SspError(helper.HyOError):
 
 
 class Helper(helper.Helper):
-    """
-    A collection class with many helper functions
-    """
+    """ A collection class with many helper functions """
 
-    def __init__(self, verbose=False):
-        super(Helper, self).__init__(verbose)
+    def __init__(self):
+        super(Helper, self).__init__()
 
     @staticmethod
     def default_projects_folder():
-        """
-        Overloaded function that calls the parent function and adds package specific directory
-        """
+        """ Overloaded function that calls the parent function and adds package specific directory """
         from . import __doc__
         from . import __version__
 

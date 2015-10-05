@@ -1,19 +1,24 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
+from abc import ABCMeta, abstractmethod
 import socket
 import threading
+import logging
+
+log = logging.getLogger(__name__)
 
 from .base_io import BaseIo, IoError
 
 
 class UdpIO(BaseIo):
 
-    def __init__(self, listen_port, desired_datagrams, timeout, verbose=False, callback_print_func=None):
-        super(UdpIO, self).__init__(verbose, callback_print_func)
+    __metaclass__ = ABCMeta
+
+    def __init__(self, listen_port, desired_datagrams, timeout):
+        super(UdpIO, self).__init__()
         self.listen_port = listen_port
         self.desired_datagrams = desired_datagrams
         self.timeout = timeout
-        self.verbose = verbose
         self.data = None
         self.sender = None
         self.sock_in = None
@@ -32,12 +37,12 @@ class UdpIO(BaseIo):
         self.logfile_name = None
 
     def start_logging(self):
-        """This method is meant to be over-ridden"""
-        pass
+        """ This method is meant to be over-ridden """
+        log.error("to be overloaded")
 
     def stop_logging(self):
-        """This method is meant to be over-ridden"""
-        pass
+        """ This method is meant to be over-ridden """
+        log.error("to be overloaded")
 
     def clear_logged_data(self):
         self.logged_data = []
@@ -59,9 +64,9 @@ class UdpIO(BaseIo):
             self.logging_to_file = True
 
         self.listening = True
-        self.print_info("starting listen thread")
+        log.info("starting listen thread")
         threading.Thread(target=self.listen).start()
-        self.print_info("started listen thread")
+        log.info("started listen thread")
 
     def listen(self):
 
@@ -77,10 +82,10 @@ class UdpIO(BaseIo):
         except socket.error as e:
             self.listening = False
             self.sock_in.close()
-            self.print_info("port %d already bound? Not listening anymore. Error: %s" % (self.listen_port, e))
+            log.info("port %d already bound? Not listening anymore. Error: %s" % (self.listen_port, e))
             return
 
-        self.print_info("going to listen on port %s for datagrams %s" % (self.listen_port, self.desired_datagrams))
+        log.info("going to listen on port %s for datagrams %s" % (self.listen_port, self.desired_datagrams))
         self.do_listen = True
         self.listening = True
 
@@ -89,17 +94,12 @@ class UdpIO(BaseIo):
                 self.data, self.sender = self.sock_in.recvfrom(2 ** 16)
 
             except socket.timeout:
-                # self.print_info("socket timeout")
+                # log.info("socket timeout")
                 continue
 
-            if self.verbose:
-                port, ip = self.sender
-                # print("Got data from %s (port: %s)" % (port, ip))
-                # print(repr(self.data))
-
             if self.logging_to_file and self.logfile:
-                self.print_info("going to write to output file %s length is %s bytes"
-                                % (self.logfile_name, len(self.data)))
+                log.info("going to write to output file %s length is %s bytes"
+                         % (self.logfile_name, len(self.data)))
 
                 self.log_to_file(self.data)
 
@@ -110,7 +110,7 @@ class UdpIO(BaseIo):
 
         self.sock_in.close()
 
-        self.print_info("done listening!")
+        log.info("done listening!")
 
     def stop_listen(self):
         self.do_listen = False

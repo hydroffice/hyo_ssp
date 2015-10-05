@@ -2,6 +2,9 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import datetime as dt
 import numpy as np
+import logging
+
+log = logging.getLogger(__name__)
 
 from ..base_format import BaseFormat, FormatError
 from ... import __version__
@@ -25,12 +28,12 @@ class Sippican(BaseFormat):
         Dicts.probe_types["XCTD-2"]: Dicts.sensor_types["XCTD"]
     }
 
-    def __init__(self, file_content, verbose=False, callback_print_func=None):
-        super(Sippican, self).__init__(file_content, verbose, callback_print_func)
+    def __init__(self, file_content):
+        super(Sippican, self).__init__(file_content)
         self.name = "SPC"
         self.driver = self.name + (".%s" % __version__)
 
-        self.print_info("reading ...")
+        log.info("reading ...")
         lines = self.file_content.splitlines()
         self.is_var_alpha = False
 
@@ -38,7 +41,7 @@ class Sippican(BaseFormat):
         self._read_body(lines)
 
     def _read_header(self, lines):
-        self.print_info("reading Sippican > header")
+        log.info("reading Sippican > header")
         start_token = 'Depth (m)'
         date_token = 'Date of Launch'
         time_token = 'Time of Launch'
@@ -63,14 +66,14 @@ class Sippican(BaseFormat):
 
             if line[:len(start_token)] == start_token:  # use a token to find the initial data offset
                 self.samples_offset += 1
-                self.print_info("samples offset: %s" % self.samples_offset)
+                log.info("samples offset: %s" % self.samples_offset)
                 break
 
             elif (line[:len(var_alpha_start_token)] == var_alpha_start_token) \
                     and (len(line) <= len(var_alpha_start_token)):  # token for variant alpha of the format
                 self.is_var_alpha = True
                 self.samples_offset += 1
-                self.print_info("samples offset: %s [var alpha]" % self.samples_offset)
+                log.info("samples offset: %s [var alpha]" % self.samples_offset)
                 break
 
             elif line[:len(date_token)] == date_token:  # retrieve date
@@ -79,7 +82,7 @@ class Sippican(BaseFormat):
                     month, day, year = [int(i) for i in date_str.split('/')]
                 except ValueError:
                     raise FormatError("issue in casting the date format: %s" % date_str)
-                self.print_info("date: %s / %s / %s" % (month, day, year))
+                log.info("date: %s / %s / %s" % (month, day, year))
 
             elif line[:len(time_token)] == time_token:  # retrieve time
                 time_str = line.split()[-1]
@@ -87,7 +90,7 @@ class Sippican(BaseFormat):
                     hour, minute, second = [int(i) for i in time_str.split(':')]
                 except ValueError:
                     raise FormatError("issue in casting the time format: %s" % time_str)
-                self.print_info("time: %s : %s : %s" % (hour, minute, second))
+                log.info("time: %s : %s : %s" % (hour, minute, second))
 
             elif line[:len(latitude_token)] == latitude_token:
                 lat_str = line.split(':')[-1].lstrip().strip()
@@ -99,12 +102,12 @@ class Sippican(BaseFormat):
                         self.latitude = lat_deg + lat_min / 60.
                         if lat_dir == 'S':
                             self.latitude *= -1
-                        self.print_info("lat: %s" % self.latitude)
+                        log.info("lat: %s" % self.latitude)
                     except ValueError:
                         raise FormatError("issue in casting the latitude format: %s" % lat_str)
                 else:
                     self.latitude = None
-                    self.print_info("lat: invalid")
+                    log.info("lat: invalid")
 
             elif line[:len(longitude_token)] == longitude_token:
                 lon_str = line.split(':')[-1].lstrip().strip()
@@ -114,18 +117,18 @@ class Sippican(BaseFormat):
                         lon_min = float(line.split()[-1][:-1])
                         lon_dir = line.split()[-1][-1]
                         self.longitude = lon_deg + lon_min / 60.
-                        self.print_info("long: %s" % self.longitude)
+                        log.info("long: %s" % self.longitude)
                         if lon_dir == 'W':
                             self.longitude *= -1
                     except ValueError:
                         raise FormatError("issue in casting the longitude format: %s" % lon_str)
                 else:
                     self.longitude = None
-                    self.print_info("long: invalid")
+                    log.info("long: invalid")
 
             elif line[:len(filename_token)] == filename_token:
                 self.original_path = line.split()[-1]
-                self.print_info("filename: %s" % self.original_path)
+                log.info("filename: %s" % self.original_path)
 
             elif line[:len(salinity_token)] == salinity_token:
                 sal_str = line.split()[-2]
@@ -133,7 +136,7 @@ class Sippican(BaseFormat):
                     self.input_salinity = float(sal_str)
                 except ValueError:
                     raise FormatError("issue in casting the salinity format: %s" % sal_str)
-                self.print_info("salinity: %s" % self.input_salinity)
+                log.info("salinity: %s" % self.input_salinity)
 
             elif line[:len(var_alpha_salinity_token)] == var_alpha_salinity_token:
                 sal_str = line.split()[-2]
@@ -142,32 +145,32 @@ class Sippican(BaseFormat):
                 except ValueError:
                     raise FormatError("issue in casting the salinity format: %s [var alpha]" % sal_str)
                 self.is_var_alpha = True
-                self.print_info("salinity: %s [var alpha]" % self.input_salinity)
+                log.info("salinity: %s [var alpha]" % self.input_salinity)
 
             elif line[:len(probe_token)] == probe_token:
                 try:
                     self.probe_type = Dicts.probe_types[line.split(':')[-1].lstrip().strip()]
                     self.sensor_type = self.sensor_index[self.probe_type]
-                    self.print_info("probe type: %s" % self.sensor_type)
+                    log.info("probe type: %s" % self.sensor_type)
 
                 except (IndexError, KeyError):
                     self.probe_type = Dicts.probe_types['Unknown']
                     self.sensor_type = Dicts.sensor_types['Unknown']
-                    self.print_info("probe type: unknown")
+                    log.info("probe type: unknown")
 
             elif line[:len(field_token)] == field_token:
                 column = int(line[5]) - 1
                 probe_type = line.split()[2]
                 self.data_index[probe_type] = int(column)
                 self.is_var_alpha = True
-                self.print_info("data index: %s [var alpha]" % self.data_index[probe_type])
+                log.info("data index: %s [var alpha]" % self.data_index[probe_type])
 
             self.samples_offset += 1
 
         self.num_samples = len(lines) - self.samples_offset
         if self.num_samples == 0:
             raise FormatError("unable to parse the data samples")
-        self.print_info("max samples: %s" % self.num_samples)
+        log.info("max samples: %s" % self.num_samples)
 
         if (year is not None) and (hour is not None):
             self.dg_time = dt.datetime(year, month, day, hour, minute, second)
@@ -177,11 +180,11 @@ class Sippican(BaseFormat):
         self.temperature = np.zeros(self.num_samples)
         self.salinity = np.zeros(self.num_samples)
 
-        self.print_info("sensor type: %s" % self.sensor_type)
-        self.print_info("var alpha: %s" % self.is_var_alpha)
+        log.info("sensor type: %s" % self.sensor_type)
+        log.info("var alpha: %s" % self.is_var_alpha)
 
     def _read_body(self, lines):
-        self.print_info("reading > body")
+        log.info("reading > body")
         if self.sensor_type == Dicts.sensor_types["XBT"]:
             self.salinity[:] = self.input_salinity
 
@@ -202,9 +205,9 @@ class Sippican(BaseFormat):
                         if len(fields) < 3:
                             raise FormatError("too few fields for line: %s" % line)
 
-                        #skip 0-speed value
+                        # skip 0-speed value
                         if float(fields[2]) == 0.0:
-                            self.print_info("skipping 0-speed row")
+                            log.info("skipping 0-speed row")
                             continue
 
                         for field in fields:
@@ -220,9 +223,9 @@ class Sippican(BaseFormat):
                         if len(fields) < 2:
                             raise FormatError("too few fields for line: %s" % line)
 
-                        #skip 0-speed value
+                        # skip 0-speed value
                         if float(fields[1]) == 0.0:
-                            self.print_info("skipping 0-speed row")
+                            log.info("skipping 0-speed row")
                             continue
 
                         for field in fields:
@@ -236,9 +239,9 @@ class Sippican(BaseFormat):
                         if len(fields) < 6:
                             raise FormatError("too few fields for line: %s" % line)
 
-                        #skip 0-speed value
+                        # skip 0-speed value
                         if float(fields[4]) == 0.0:
-                            self.print_info("skipping 0-speed row")
+                            log.info("skipping 0-speed row")
                             continue
 
                         for field in fields:
@@ -247,17 +250,17 @@ class Sippican(BaseFormat):
                             elif field_count == 1:
                                 self.temperature[count] = field
                             elif field_count == 2:
-                                #conductivity = field
+                                # conductivity = field
                                 pass
                             elif field_count == 3:
                                 self.salinity[count] = field
                             elif field_count == 4:
                                 self.speed[count] = field
                             elif field_count == 5:
-                                #density = field
+                                # density = field
                                 pass
                             elif field_count == 6:
-                                #status = field
+                                # status = field
                                 pass
                             field_count += 1
 
@@ -267,9 +270,9 @@ class Sippican(BaseFormat):
 
                     if self.sensor_type == Dicts.sensor_types["XBT"]:
 
-                        #skip 0-speed value
+                        # skip 0-speed value
                         if float(fields[self.data_index["Sound"]]) == 0.0:
-                            self.print_info("skipping 0-speed row")
+                            log.info("skipping 0-speed row")
                             continue
 
                         self.depth[count] = float(fields[self.data_index["Depth"]])
@@ -281,9 +284,9 @@ class Sippican(BaseFormat):
 
                     elif self.sensor_type == Dicts.sensor_types["XCTD"]:
 
-                        #skip 0-speed value
+                        # skip 0-speed value
                         if float(fields[self.data_index["Sound"]]) == 0.0:
-                            self.print_info("skipping 0-speed row")
+                            log.info("skipping 0-speed row")
                             continue
 
                         self.depth[count] = float(fields[self.data_index["Depth"]])
@@ -292,7 +295,7 @@ class Sippican(BaseFormat):
                         self.salinity[count] = float(fields[self.data_index["Salinity"]])
 
             except Exception as e:
-                self.print_error("issue in reading line #%s: %s" % (count, e))
+                log.error("issue in reading line #%s: %s" % (count, e))
                 break
             count += 1
 
