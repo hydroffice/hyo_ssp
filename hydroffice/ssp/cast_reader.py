@@ -71,7 +71,7 @@ class CastReader(object):
 
     def test_drivers(self, time_ordered=True):
 
-        data_root_folder = os.path.join(self.here, 'data', 'samples')
+        data_root_folder = os.path.join(self.here, 'samples')
 
         for fmt in Dicts.import_formats:
             fmt_ext = Dicts.import_extensions[Dicts.import_formats[fmt]]

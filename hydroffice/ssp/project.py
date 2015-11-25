@@ -17,7 +17,8 @@ from .helper import Helper
 from .helper import SspError
 from .ssp_dicts import Dicts
 from .ssp import SspData
-from .settings import Settings
+from .settings.settings import Settings
+from .user_inputs import UserInputs
 from .drivers.mvp.mvpio import MvpCastIO
 # from .drivers.mvp.mvp_controller import MVPController
 from .drivers.km.kmio import KmIO
@@ -92,6 +93,8 @@ class Project(project.Project):
 
         self.s = Settings()
         self.s.load_config()
+
+        self.u = UserInputs()
 
         self.ssp_data = SspData()
 

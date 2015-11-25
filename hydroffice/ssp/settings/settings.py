@@ -8,10 +8,10 @@ import logging
 
 log = logging.getLogger(__name__)
 
-from .ssp_dicts import Dicts
-from .helper import SspError, Helper
-from .pkg_clients import PkgClientList
-from .atlases import woa09checker
+from hydroffice.ssp.ssp_dicts import Dicts
+from hydroffice.ssp.helper import SspError, Helper
+from hydroffice.ssp.pkg_clients import PkgClientList
+from hydroffice.ssp.atlases import woa09checker
 
 
 class Settings(object):
@@ -56,12 +56,6 @@ class Settings(object):
         self.user_export_directory = None
         self.user_filename_prefix = None
         self.auto_export_on_send = False
-
-        # user insert
-        self.user_speed = None
-        self.user_salinity = None
-        self.user_temperature = None
-        self.user_depth = None
 
         # server settings
         self.server_append_caris_file = False
@@ -344,14 +338,8 @@ class Settings(object):
         except KeyError:
             raise SspError("Unknown export data format: %s" % fmt)
 
-    def clear_user_samples(self):
-        self.user_speed = None
-        self.user_salinity = None
-        self.user_temperature = None
-        self.user_depth = None
-
     def __str__(self):
-        output = " ### SSP Settings (time stamp: %s) ###\n\n" % datetime.datetime.now().isoformat()
+        output = " # Settings (timestamp: %s) #\n\n" % datetime.datetime.now().isoformat()
 
         output += "\n > Oceanographic data sources\n"
         output += "   - ssp_extension_source:  %s\n" % self.ssp_extension_source
@@ -369,12 +357,6 @@ class Settings(object):
         output += "   - user_export_directory:  %s\n" % self.user_export_directory
         output += "   - user_filename_prefix:  %s\n" % self.user_filename_prefix
         output += "   - auto_export_on_send:  %s\n" % self.auto_export_on_send
-
-        output += "\n > User insert\n"
-        output += "   - user_speed:  %s\n" % self.user_speed
-        output += "   - user_salinity:  %s\n" % self.user_salinity
-        output += "   - user_temperature:  %s\n" % self.user_temperature
-        output += "   - user_depth:  %s\n" % self.user_depth
 
         output += "\n > Server\n"
         output += "   - server_append_caris_file: %s\n" % self.server_append_caris_file
@@ -412,5 +394,3 @@ class Settings(object):
 
         return output
 
-    def print_all(self):
-        print(self)

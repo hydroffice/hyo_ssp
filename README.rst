@@ -7,31 +7,7 @@ HydrOffice is a research development environment for ocean mapping. Its aim is t
 
 This package provides functionalities to deal with sound speed profiles.
 
-Freezing
---------
 
-### Pyinstaller
-
-* `pyinstaller --clean -y SSP.1file.spec`
-* `pyinstaller --clean -y SSP.1folder.spec`
-
-Useful Mercurial commands
--------------------------
-
-Merge a branch to default:
-
-* `hg update default`
-* `hg merge 1.0.0`
-* `hg commit -m"Merged 1.0.2 branch with default" -ugiumas`
-* `hg update 1.0.0`
-* `hg commit -m"Close 1.0.2 branch" -ugiumas --close-branch`
-
-Open a new branch:
-
-* `hg update default`
-* `hg branch 1.0.1`
-* `hg commit -m"Created 1.0.3 branch" -ugiumas`
-    
 Other info
 ----------
 
