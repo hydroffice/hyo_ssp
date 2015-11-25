@@ -19,7 +19,7 @@ from .ssp_dicts import Dicts
 from .ssp import SspData
 from .settings import Settings
 from .drivers.mvp.mvpio import MvpCastIO
-#from .drivers.mvp.mvp_controller import MVPController
+# from .drivers.mvp.mvp_controller import MVPController
 from .drivers.km.kmio import KmIO
 from .drivers.sippican.sippicanio import SippicanIO
 from .atlases import woa09
@@ -126,7 +126,7 @@ class Project(project.Project):
             self._init_timers()
 
     def init_listeners(self):
-        """ build listeners and start to listen """
+        """ Build listeners and start to listen """
 
         self.km_listener = KmIO(self.s.km_listen_port, [0x50, 0x52, 0x55, 0x58], self.s.km_listen_timeout)
         self.km_listener.start_listen()

@@ -8,6 +8,11 @@ log = logging.getLogger(__name__)
 from hydroffice.base import helper
 
 
+def hyo_ssp_installation_folder():
+    """ Return the HydrOffice SSP folder """
+    return os.path.dirname(os.path.realpath(__file__))
+
+
 class SspError(helper.HyOError):
     """ Error raised for SSP issues """
     def __init__(self, message, *args):
@@ -39,3 +44,11 @@ class Helper(helper.Helper):
                 raise SspError("Error in creating the default projects folder: %s\n%s" % (projects_folder, e))
 
         return projects_folder
+
+    @staticmethod
+    def get_samples_folder():
+        """ return the path to the folder with samples """
+        data_folder = os.path.abspath(os.path.join(hyo_ssp_installation_folder(), "samples"))
+        if not os.path.exists(data_folder):
+            raise SspError("unable to find the data folder: %s" % data_folder)
+        return data_folder
