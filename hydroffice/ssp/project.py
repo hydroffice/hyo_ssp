@@ -1,10 +1,11 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
+import datetime as dt
+import logging
 import os
 import time
-import datetime as dt
+
 import numpy as np
-import logging
 
 log = logging.getLogger(__name__)
 
@@ -18,7 +19,7 @@ from .helper import SspError
 from .ssp_dicts import Dicts
 from .ssp import SspData
 from .settings.settings import Settings
-from .user_inputs import UserInputs
+from .settings.user_inputs import UserInputs
 from .drivers.mvp.mvpio import MvpCastIO
 # from .drivers.mvp.mvp_controller import MVPController
 from .drivers.km.kmio import KmIO
@@ -92,7 +93,7 @@ class Project(project.Project):
         self.ssp_reference_filename = ""
 
         self.s = Settings()
-        self.s.load_config()
+        self.s.load_settings_from_db()
 
         self.u = UserInputs()
 
@@ -223,7 +224,7 @@ class Project(project.Project):
                 raise SspError("missing date required for database lookup.")
 
         self.filename = filename
-        self.s.filename_prefix = filename_prefix
+        self.u.filename_prefix = filename_prefix
         self.filename_suffix = filename_suffix
 
         # calculating salinity and depth (it requires position)
@@ -266,7 +267,7 @@ class Project(project.Project):
         # Sippicans are always collected on Windows boxes and the filename
         # reported is a windows path name.
         self.filename = self.sippican_listener.cast.filename.split('\\')[-1]
-        self.s.filename_prefix = os.path.splitext(self.filename)[0]
+        self.u.filename_prefix = os.path.splitext(self.filename)[0]
 
         self.has_sippican_to_process = True
 
@@ -317,8 +318,8 @@ class Project(project.Project):
                 time.sleep(1)
                 count += 1
 
-        self.s.filename_prefix = new_sv.date_time.strftime("%Y%m%d_%H%M%S_MVP")
-        self.filename = self.s.filename_prefix + "." + self.s.mvp_format.lower()
+        self.u.filename_prefix = new_sv.date_time.strftime("%Y%m%d_%H%M%S_MVP")
+        self.filename = self.u.filename_prefix + "." + self.s.mvp_format.lower()
 
         self.ssp_data = new_sv
         if self.woa09_atlas_loaded:
@@ -360,12 +361,10 @@ class Project(project.Project):
                 self.mvp_sensors_timer.stop()
 
         # close logging and disconnect
-        if self.s.log_processing_metadata:
-            log.info("END logging of processing metadata")
-        if self.s.log_server_metadata:
-            log.info("END logging of server metadata")
-        # TODO disconnect sqlite handler
-        # self.log_db.disconnect()
+        if self.u.log_processing_metadata:
+            self.deactivate_logging_on_db()
+        if self.u.log_server_metadata:
+            self.deactivate_server_logging_on_db()
 
     def stop_listeners(self):
         log.info("Stop listeners")
@@ -470,16 +469,16 @@ class Project(project.Project):
 
         export_directory = None
         if mode == "USER":
-            export_directory = self.s.user_export_directory
+            export_directory = self.u.user_export_directory
         elif mode == "SERVER":
             export_directory = os.path.join(self.get_output_folder(), "server")
             if not os.path.exists(export_directory):
                 os.makedirs(export_directory)
-        filename_prefix = self.s.filename_prefix
+        filename_prefix = self.u.filename_prefix
 
         num_exported = 0
-        for fmt in self.s.export_formats.keys():
-            if self.s.export_formats[fmt]:
+        for fmt in self.u.export_formats.keys():
+            if self.u.export_formats[fmt]:
                 self._format_export(export_directory, filename_prefix, fmt, mode)
                 num_exported += 1
 
@@ -522,33 +521,33 @@ class Project(project.Project):
     def clean_project(self):
         self.has_ssp_loaded = False
         self.filename = ""
-        self.s.filename_prefix = ""
+        self.u.filename_prefix = ""
 
     def count_export_formats(self):
         """ helper function to count the number of formats in export """
         num_formats_to_export = 0
-        for fmt in self.s.export_formats.keys():
-            if self.s.export_formats[fmt]:
+        for fmt in self.u.export_formats.keys():
+            if self.u.export_formats[fmt]:
                 num_formats_to_export += 1
         return num_formats_to_export
 
     def activate_logging_on_db(self):
-        self.s.log_processing_metadata = True
+        self.u.log_processing_metadata = True
         logging.getLogger().addHandler(self.log_sh)
         log.info("START logging of processing metadata")
 
     def deactivate_logging_on_db(self):
-        self.s.log_processing_metadata = False
+        self.u.log_processing_metadata = False
         log.info("END logging of processing metadata")
         logging.getLogger().removeHandler(self.log_sh)
 
     def activate_server_logging_on_db(self):
-        self.s.log_server_metadata = True
+        self.u.log_server_metadata = True
         logging.getLogger().addHandler(self.log_server_sh)
         log.info("START logging of server metadata")
 
     def deactivate_server_logging_on_db(self):
-        self.s.log_server_metadata = False
+        self.u.log_server_metadata = False
         log.info("END logging of server metadata")
         logging.getLogger().removeHandler(self.log_server_sh)
 
