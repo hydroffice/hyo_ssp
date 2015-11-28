@@ -21,7 +21,6 @@ class Woa09(Atlas):
 
         self.name = "W09"
         self.source_info = "World Ocean Atlas 2009"
-
         self.woa_path = ""
 
         self.temperature_annual = None
@@ -60,7 +59,8 @@ class Woa09(Atlas):
             self.salinity_seasonal = netCDF4.Dataset(self.woa_path + "/salinity_seasonal_1deg.nc")
             self.landsea = np.genfromtxt(self.woa_path + "/landsea.msk").reshape((180, 360))
             self.basin = np.genfromtxt(self.woa_path + "/basin.msk").reshape((33, 180, 360))
-        except:
+        except Exception as e:
+            log.error(e)
             raise AtlasError("issue in reading the netCDF data")
 
         # What's our grid interval in lat/long
