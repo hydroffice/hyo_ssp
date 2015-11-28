@@ -1,11 +1,12 @@
 .. HydrOffice Base documentation master file, created by
    sphinx-quickstart on Sun Oct 18 16:44:37 2015.
 
+*******************************
 HydrOffice Base's documentation
-===============================
+*******************************
 
 Contents
---------
+========
 
 .. toctree::
    :maxdepth: 2
@@ -20,6 +21,7 @@ Contents
    how_to_release
    dev_commands
    banner
+   app_a_oceanographic_atlases
 
 Indices and tables
 ==================

@@ -1,21 +1,21 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-import math
-import socket
-import copy
-from datetime import datetime
 import functools
-import operator
-from io import open
-import numpy as np
 import logging
+import math
+import operator
+import socket
+from datetime import datetime
+from io import open
+
+import numpy as np
 
 log = logging.getLogger(__name__)
 
 from .ssp_dicts import Dicts
 from .ssp_aux import SspAux
 from . import oceanography
-from .drivers.sippican.sippican import Sippican
+from hydroffice.ssp.drivers.sippican import Sippican
 from .drivers.valeport import Valeport
 from .drivers.turo import Turo
 from .drivers.seabird import Seabird

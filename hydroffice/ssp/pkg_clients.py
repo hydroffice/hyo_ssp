@@ -9,7 +9,7 @@ from .ssp_dicts import Dicts
 
 class PkgClient(object):
     def __init__(self, client):
-
+        # print(client)
         self.name = client.split(":")[0]
         self.IP = client.split(":")[1]
         self.port = int(client.split(":")[2])

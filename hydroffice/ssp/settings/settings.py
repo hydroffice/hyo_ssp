@@ -11,7 +11,7 @@ from .db import SettingsDb
 from ..ssp_dicts import Dicts
 from ..helper import SspError
 from ..pkg_clients import PkgClientList
-
+from ..atlases import woa09checker
 
 class Settings(object):
 
@@ -61,7 +61,7 @@ class Settings(object):
 
     def load_settings_from_db(self):
         db = SettingsDb()
-        log.debug("Settings name: %s" % db.settings_name)
+        log.debug("Settings name: %s" % db.active_profile_name)
         self.rx_max_wait_time = db.rx_max_wait_time
         self.ssp_extension_source = Dicts.extension_sources[db.ssp_extension_source]
         self.ssp_salinity_source = Dicts.salinity_sources[db.ssp_salinity_source]
@@ -94,15 +94,23 @@ class Settings(object):
         self.mvp_instrument_id = db.mvp_instrument_id
 
         for client in db.client_list:
-            client_string = "\"%s\":%s:%s:%s" % (client[0], client[1], client[2], client[3])
+            client_string = "\"%s\":%s:%s:%s" % (client[1], client[2], client[3], client[4])
             # print(client_string)
             self.client_list.add_client(client_string)
         db.close()
 
+        if self.woa_path is None:  # default
+            self.woa_path = os.path.join(woa09checker.Woa09Checker.get_atlases_folder(), 'woa09')
+
+        if not os.path.exists(self.woa_path):
+            log.warning("Invalid WOA path:  %s, set to None" % self.woa_path)
+            self.woa_path = None
+
+
     @classmethod
-    def active_settings_id(cls):
+    def active_profile_id(cls):
         db = SettingsDb()
-        settings_id = db.active_settings_id
+        settings_id = db.active_profile_id
         db.close()
         return settings_id
 

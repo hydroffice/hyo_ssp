@@ -20,28 +20,13 @@ from .ssp_dicts import Dicts
 from .ssp import SspData
 from .settings.settings import Settings
 from .settings.user_inputs import UserInputs
-from .drivers.mvp.mvpio import MvpCastIO
+from .io.mvpio import MvpCastIO
 # from .drivers.mvp.mvp_controller import MVPController
-from .drivers.km.kmio import KmIO
-from .drivers.sippican.sippicanio import SippicanIO
+from .io.kmio import KmIO
+from .io.sippicanio import SippicanIO
 from .atlases import woa09
 from .atlases import rtofs
-
-
-class ServerFilter(logging.Filter):
-    def filter(self, record):
-        # print(record.name, record.levelname)
-        if record.name.startswith('hydroffice.ssp.server'):
-            return True
-        return False
-
-
-class NotServerFilter(logging.Filter):
-    def filter(self, record):
-        # print(record.name, record.levelname)
-        if record.name.startswith('hydroffice.ssp.server'):
-            return False
-        return True
+from .logging_filters import ServerFilter, NotServerFilter
 
 
 class Project(project.Project):
@@ -49,9 +34,107 @@ class Project(project.Project):
 
     here = os.path.abspath(os.path.dirname(__file__))
 
-    def __init__(self, with_listeners=True, with_woa09=True, with_rtofs=True):
+    def __init__(self, with_woa09=True, with_rtofs=True, with_listeners=True):
         super(Project, self).__init__(Helper.default_projects_folder())
 
+        # store input settings
+        self.with_woa09 = with_woa09
+        self.with_rtofs = with_rtofs
+        self.with_listeners = with_listeners
+
+        # in-use variables
+        self.ssp_data = SspData()
+        self.filename = None
+        self.filename_suffix = None
+        self.time_of_last_tx = None
+        self.surface_speed_applied = False
+        self.ssp_applied_depth = 0  # > TODO: is properly applied in RunSever?
+        self.has_ssp_loaded = False
+        self.ssp_reference = None
+        self.ssp_reference_filename = ""
+        self.mean_depth = None
+        self.vessel_draft = None
+        self.surface_sound_speed = None
+        # This is the default configuration
+        self.ssp_recipient_ip = "127.0.0.1"
+        self.ssp_recipient_port = 4001
+
+        # prepare settings
+        self.s = Settings()
+        self.s.load_settings_from_db()
+        self.u = UserInputs()
+
+        # Server
+        self.server = Server(self)
+        self.server_timer = None
+
+        #
+        # WOA09
+        #
+        self.woa09_atlas_loaded = False
+        if self.with_woa09:
+            self.woa09_atlas = woa09.Woa09()
+            self.ssp_woa = None
+            self.ssp_woa_min = None
+            self.ssp_woa_max = None
+            self.load_woa09_atlas()
+
+        #
+        # RTOFS
+        #
+        self.rtofs_atlas_loaded = False
+        if self.with_rtofs:
+            self.rtofs_atlas = rtofs.RTOFS()
+            self.load_rtofs_atlas()
+
+        #
+        # listeners
+        #
+        self.km_listener = None
+
+        self.has_mvp_to_process = False
+        self.mvp_listener = None
+        self.mvp_timer = None
+        self.mvp_controller = None
+        self.mvp_sensors_timer = None
+
+        self.has_sippican_to_process = False
+        self.sippican_listener = None
+        self.sippican_timer = None
+
+        if self.with_listeners:
+            self.init_listeners()
+            self._init_timers()
+
+        # initialize logging filters
+        self.log_sh = None
+        self.log_server_sh = None
+        self._init_logging_filters()
+
+    def load_woa09_atlas(self):
+        """ Load the WOA grid """
+        try:
+            self.woa09_atlas.load_grids(self.s.woa_path)
+        except SspError as e:
+            log.warning("While loading WOA09, %s" % e)
+            self.woa09_atlas_loaded = False
+            return False
+
+        self.woa09_atlas_loaded = True
+        return True
+
+    def load_rtofs_atlas(self):
+        """ Load the RTOFS grid """
+        try:
+            self.rtofs_atlas.load_grids(dt.datetime.utcnow())
+        except SspError as e:
+            log.warning("While loading RTOFS, %s" % e)
+            self.rtofs_atlas_loaded = False
+            return False
+        self.rtofs_atlas_loaded = True
+        return True
+
+    def _init_logging_filters(self):
         self.log_sh = SQLiteHandler(db=os.path.join(Helper.default_projects_folder(), "__log__.db"))
         self.log_sh.setLevel(logging.DEBUG)
         self.log_sh.addFilter(NotServerFilter())
@@ -59,75 +142,6 @@ class Project(project.Project):
         self.log_server_sh = SQLiteHandler(db=os.path.join(Helper.default_projects_folder(), "__server_log__.db"))
         self.log_server_sh.setLevel(logging.DEBUG)
         self.log_server_sh.addFilter(ServerFilter())
-
-        self.server = Server(self)
-        self.with_listeners = with_listeners
-
-        # atlases settings
-        self.with_woa09 = with_woa09
-        self.woa09_atlas_loaded = False
-        if self.with_woa09:
-            self.woa09_atlas = woa09.Woa09()
-            self.ssp_woa = None
-            self.ssp_woa_min = None
-            self.ssp_woa_max = None
-
-        self.with_rtofs = with_rtofs
-        self.rtofs_atlas_loaded = False
-        if self.with_rtofs:
-            self.rtofs_atlas = rtofs.RTOFS()
-
-        self.server_timer = None
-
-        self.has_sippican_to_process = False
-        self.has_mvp_to_process = False
-
-        self.filename = None
-        self.filename_suffix = None
-        self.time_of_last_tx = None
-        self.surface_speed_applied = False
-        self.ssp_applied_depth = 0  # > TODO: is properly applied in RunSever?
-        self.has_ssp_loaded = False
-
-        self.ssp_reference = None
-        self.ssp_reference_filename = ""
-
-        self.s = Settings()
-        self.s.load_settings_from_db()
-
-        self.u = UserInputs()
-
-        self.ssp_data = SspData()
-
-        self.mean_depth = None
-        self.vessel_draft = None
-        self.surface_sound_speed = None
-
-        # listeners
-        self.km_listener = None
-
-        self.mvp_listener = None
-        self.mvp_timer = None
-        self.mvp_controller = None
-        self.mvp_sensors_timer = None
-
-        self.sippican_listener = None
-        self.sippican_timer = None
-
-        # This is the default configuration
-        self.ssp_recipient_ip = "127.0.0.1"
-        self.ssp_recipient_port = 4001
-
-        # optional initialization
-        if self.with_woa09:
-            self.load_woa09_atlas()
-
-        if self.with_rtofs:
-            self.load_rtofs_atlas()
-
-        if self.with_listeners:
-            self.init_listeners()
-            self._init_timers()
 
     def init_listeners(self):
         """ Build listeners and start to listen """
@@ -380,27 +394,6 @@ class Project(project.Project):
         running_flag = self.sippican_listener.listening and self.km_listener.listening and self.mvp_listener.listening
         return running_flag
 
-    def load_woa09_atlas(self):
-        """ Load the WOA grid """
-        try:
-            self.woa09_atlas.load_grids(self.s.woa_path)
-
-        except SspError:
-            self.woa09_atlas_loaded = False
-
-        self.woa09_atlas_loaded = True
-
-    def load_rtofs_atlas(self):
-        """ Load the RTOFS grid """
-        try:
-            self.rtofs_atlas.load_grids(dt.datetime.utcnow())
-
-        except SspError:
-            return False
-
-        self.rtofs_atlas_loaded = True
-        return True
-
     def send_cast(self, client, kng_fmt):
         log.info("Transmitting cast to %s (port: %d)" % (client.IP, client.port))
 
@@ -557,7 +550,7 @@ class Project(project.Project):
         """ Retrieve a cast from SIS """
         self.km_listener.ssp = None
 
-        log.info("requesting IUR to: %s" % self.ssp_recipient_ip)
+        log.info("requesting IUR to: %s:%s" % (self.ssp_recipient_ip, self.ssp_recipient_port))
         self.km_listener.request_iur(self.ssp_recipient_ip)
 
         # Give SIS some time to transmit it

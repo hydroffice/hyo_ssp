@@ -6,7 +6,7 @@ Subpackages
 
 .. toctree::
 
-    hydroffice.base
+    hydroffice.ssp
 
 Module contents
 ---------------
