@@ -22,6 +22,7 @@ Contents
    dev_commands
    banner
    app_a_oceanographic_atlases
+   app_b_connection_settings
 
 Indices and tables
 ==================

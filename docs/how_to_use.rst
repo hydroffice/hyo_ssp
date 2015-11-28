@@ -7,7 +7,7 @@ How to use
 
    operator_mode
    server_mode
-
+   list_of_references
 
 For some examples on how to use the library:
 

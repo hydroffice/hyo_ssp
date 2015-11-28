@@ -136,7 +136,7 @@ This method is more general, and it can be used for data transmission to other c
     Figure – Datagram Distribution dialog, with key settings in red for :ref:`method_2`.
 
 * Choose the datagram from the drop down menu, starting with *Position (P)*.
-* Type in the IP address of the remote machine where this hydro-package is installed, immediately followed by a colon (:), then  the port number that the data should be delivered to on the remote machine: e.g., 192.168.1.67:16103.
+* Type in the IP address of the remote machine where this hydro-package is installed, immediately followed by a colon (:), then  the port number that the data should be delivered to on the remote machine: e.g., ``192.168.1.67:16103``.
 * Click the *Subscribe* button.
 * Repeat Steps 2-4 for the *SVP (U)* and the *XYZ88 (X)* datagrams.
 
@@ -147,7 +147,7 @@ Method #3
 
 This method is required when multiple software packages need to receive data from *SIS*, and it represents
 an extension of the previous two methods. It uses a standalone program, named *DataDistrib.exe*,
-bundled with SIS and usually installed in *C:\Program Files\Kongsberg Maritime\SIS\bin*
+bundled with SIS and usually installed in *C:\\Program Files\\Kongsberg Maritime\\SIS\\bin*
 (together with a configuration file *DataDistrib.ini* with all the subscriptions).
 
 It is suggested to add the *DataDistrib.exe* to the *Startup* menu (so that it is automatically started).
