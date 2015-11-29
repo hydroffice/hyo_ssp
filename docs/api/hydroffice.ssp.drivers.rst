@@ -1,15 +1,6 @@
 hydroffice.ssp.drivers package
 ==============================
 
-Subpackages
------------
-
-.. toctree::
-
-    hydroffice.ssp.drivers.km
-    hydroffice.ssp.drivers.mvp
-    hydroffice.ssp.drivers.sippican
-
 Submodules
 ----------
 
@@ -17,14 +8,6 @@ hydroffice.ssp.drivers.base_format module
 -----------------------------------------
 
 .. automodule:: hydroffice.ssp.drivers.base_format
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-hydroffice.ssp.drivers.base_io module
--------------------------------------
-
-.. automodule:: hydroffice.ssp.drivers.base_io
     :members:
     :undoc-members:
     :show-inheritance:
@@ -53,6 +36,22 @@ hydroffice.ssp.drivers.idronaut module
     :undoc-members:
     :show-inheritance:
 
+hydroffice.ssp.drivers.km module
+--------------------------------
+
+.. automodule:: hydroffice.ssp.drivers.km
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+hydroffice.ssp.drivers.mvp module
+---------------------------------
+
+.. automodule:: hydroffice.ssp.drivers.mvp
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 hydroffice.ssp.drivers.saiv module
 ----------------------------------
 
@@ -69,18 +68,18 @@ hydroffice.ssp.drivers.seabird module
     :undoc-members:
     :show-inheritance:
 
-hydroffice.ssp.drivers.turo module
-----------------------------------
+hydroffice.ssp.drivers.sippican module
+--------------------------------------
 
-.. automodule:: hydroffice.ssp.drivers.turo
+.. automodule:: hydroffice.ssp.drivers.sippican
     :members:
     :undoc-members:
     :show-inheritance:
 
-hydroffice.ssp.drivers.udpio module
------------------------------------
+hydroffice.ssp.drivers.turo module
+----------------------------------
 
-.. automodule:: hydroffice.ssp.drivers.udpio
+.. automodule:: hydroffice.ssp.drivers.turo
     :members:
     :undoc-members:
     :show-inheritance:

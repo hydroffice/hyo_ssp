@@ -8,6 +8,7 @@ Subpackages
 
     hydroffice.ssp.atlases
     hydroffice.ssp.drivers
+    hydroffice.ssp.io
     hydroffice.ssp.settings
 
 Submodules
@@ -25,6 +26,14 @@ hydroffice.ssp.helper module
 ----------------------------
 
 .. automodule:: hydroffice.ssp.helper
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+hydroffice.ssp.logging_filters module
+-------------------------------------
+
+.. automodule:: hydroffice.ssp.logging_filters
     :members:
     :undoc-members:
     :show-inheritance:

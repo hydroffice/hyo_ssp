@@ -1,9 +1,9 @@
 .. HydrOffice Base documentation master file, created by
    sphinx-quickstart on Sun Oct 18 16:44:37 2015.
 
-*******************************
-HydrOffice Base's documentation
-*******************************
+******************************
+HydrOffice SSP's documentation
+******************************
 
 Contents
 ========
@@ -21,8 +21,6 @@ Contents
    how_to_release
    dev_commands
    banner
-   app_a_oceanographic_atlases
-   app_b_connection_settings
 
 Indices and tables
 ==================
