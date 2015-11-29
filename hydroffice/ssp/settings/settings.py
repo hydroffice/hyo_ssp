@@ -93,6 +93,7 @@ class Settings(object):
         self.mvp_instrument = db.mvp_instrument
         self.mvp_instrument_id = db.mvp_instrument_id
 
+        self.client_list = PkgClientList()  # to reset the list
         for client in db.client_list:
             client_string = "\"%s\":%s:%s:%s" % (client[1], client[2], client[3], client[4])
             # print(client_string)
