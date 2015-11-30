@@ -1,7 +1,7 @@
 HydrOffice SSP
 ==============
 
-.. image:: https://bitbucket.org/ccomjhc/hyo_ssp/raw/tip/hydroffice/ssp/gui/media/favicon.png
+.. image:: https://bitbucket.org/ccomjhc/hyo_ssp/raw/tip/hydroffice/ssp/media/favicon.png
     :alt: logo
 
 HydrOffice is a research development environment for ocean mapping. Its aim is to provide a collection of
