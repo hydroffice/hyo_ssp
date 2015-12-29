@@ -391,6 +391,12 @@ class Project(project.Project):
         """ Check if all listeners are running """
         if not self.with_listeners:
             return False
+        if self.sippican_listener is None:
+            log.info("Sippican listener is not running")
+        if self.km_listener is None:
+            log.info("Kongsberg listener is not running")
+        if self.mvp_listener is None:
+            log.info("MVP listener is not running")
         running_flag = self.sippican_listener.listening and self.km_listener.listening and self.mvp_listener.listening
         return running_flag
 

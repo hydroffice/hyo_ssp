@@ -796,7 +796,20 @@ class SspDb(BaseDbObject):
             ssp_loc = 2
         else:
             ssp_loc = 1
-        ax_ins = zoomed_inset_axes(ax, 15, loc=ssp_loc)
+
+        max_delta_range = max(abs(ssp_x_min-ssp_x_max),abs(ssp_y_min-ssp_y_max))
+        log.info("maximum delta range: %s" % max_delta_range)
+        if max_delta_range > 15:
+            ins_scale = 6
+        elif max_delta_range > 12:
+            ins_scale = 9
+        elif max_delta_range > 6:
+            ins_scale = 12
+        elif max_delta_range > 3:
+            ins_scale = 15
+        else:
+            ins_scale = 18
+        ax_ins = zoomed_inset_axes(ax, ins_scale, loc=ssp_loc)
         ax_ins.set_xlim((ssp_x_min - ssp_x_delta), (ssp_x_max + ssp_x_delta))
         ax_ins.set_ylim((ssp_y_min - ssp_y_delta), (ssp_y_max + ssp_y_delta))
 
@@ -921,9 +934,13 @@ class SspDb(BaseDbObject):
         ssp_count = 0
         current_date = None
         fig = None
+        first_fig = True
         for ts_pk in ts_list:
 
-            ssp_count += 1
+            if first_fig:
+                first_fig = False
+            else:
+                ssp_count += 1
             tmp_date = ts_pk[0].date()
 
             if (current_date is None) or (tmp_date > current_date):
