@@ -4,6 +4,7 @@ syntax: glob
 __pycache__/
 *.pyc
 *.pyo
+.cache/
 
 # coverage files
 .coverage
@@ -45,3 +46,7 @@ var/
 *.egg-info/
 .installed.cfg
 *.egg
+_build/
+
+# notebooks checkpoint
+examples/.ipynb_checkpoints/

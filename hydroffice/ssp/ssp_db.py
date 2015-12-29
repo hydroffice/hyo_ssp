@@ -4,10 +4,13 @@ import sqlite3
 import os
 from datetime import datetime as dt
 import numpy as np
+import logging
+
+log = logging.getLogger(__name__)
 
 from osgeo import gdal
 from osgeo import ogr
-from ..base.gdal_aux import GdalAux
+from hydroffice.base.gdal_aux import GdalAux
 
 from matplotlib import rcParams
 rcParams.update(
@@ -21,19 +24,18 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1.inset_locator import zoomed_inset_axes
 from mpl_toolkits.axes_grid1.inset_locator import mark_inset
 
-from ..base.base_objects import BaseDbObject
+from hydroffice.base.base_objects import BaseDbObject
+from hydroffice.base.helper import HyOError
+
 from . import __version__
 from .ssp_collection import SspCollection
 from .ssp import SspData
 from .ssp_dicts import Dicts
 from .helper import Helper, SspError
-from ..base.helper import HyOError
 
 
 class DbError(SspError):
-    """
-    Error raised for atlas issues
-    """
+    """ Error raised for db issues """
     def __init__(self, message, *args):
         self.message = message
         # allow users initialize misc. arguments as any other builtin Error
@@ -41,14 +43,12 @@ class DbError(SspError):
 
 
 class SspDb(BaseDbObject):
-    """class that stores SSPs in a SQLite db"""
+    """ class that stores SSPs in a SQLite db """
 
-    def __init__(self, db_path=None, verbose=True, callback_print_func=None):
+    def __init__(self, db_path=None):
         if not db_path:
             db_path = os.path.join(Helper.default_projects_folder(), "__data__.db")
-        BaseDbObject.__init__(self, db_path=db_path, verbose=verbose, callback_print_func=callback_print_func)
-
-        self.name = "PDB"
+        super(SspDb, self).__init__(db_path=db_path)
         self.tmp_data = None
         self.tmp_ssp_pk = None
 
@@ -67,7 +67,7 @@ class SspDb(BaseDbObject):
 
     def build_tables(self):
         if not self.conn:
-            self.print_error("missing db connection")
+            log.error("missing db connection")
             return False
 
         try:
@@ -75,9 +75,9 @@ class SspDb(BaseDbObject):
                 if self.conn.execute("""
                                      PRAGMA foreign_keys
                                      """):
-                    self.print_info("foreign keys active")
+                    log.info("foreign keys active")
                 else:
-                    self.print_error("foreign keys not active")
+                    log.error("foreign keys not active")
                     return False
 
                 self.conn.execute("""
@@ -160,7 +160,7 @@ class SspDb(BaseDbObject):
             return True
 
         except sqlite3.Error as e:
-            self.print_error("during building tables, %s: %s" % (type(e), e))
+            log.error("during building tables, %s: %s" % (type(e), e))
             return False
 
     def add_casts(self, ssp_coll):
@@ -168,41 +168,41 @@ class SspDb(BaseDbObject):
             raise DbError("passed NOT a SspCollection instance")
 
         if not self.conn:
-            self.print_error("missing db connection")
+            log.error("missing db connection")
             return False
 
         with self.conn:
             for self.tmp_data in ssp_coll.data:
 
-                self.print_info("got a new SSP to store:\n%s" % self.tmp_data)
+                log.info("got a new SSP to store:\n%s" % self.tmp_data)
 
                 if not self._add_survey_if_missing():
-                    self.print_error("unable to add survey: %s" % self.tmp_data.survey_name)
+                    log.error("unable to add survey: %s" % self.tmp_data.survey_name)
                     return False
 
                 if not self._get_ssp_pk():
-                    self.print_error("unable to get ssp pk: %s" % self.tmp_ssp_pk)
+                    log.error("unable to get ssp pk: %s" % self.tmp_ssp_pk)
                     return False
 
                 if not self._delete_old_ssp():
-                    self.print_error("unable to clean ssp")
+                    log.error("unable to clean ssp")
                     return False
 
                 if not self._add_ssp():
-                    self.print_error("unable to add ssp")
+                    log.error("unable to add ssp")
                     return False
 
                 if not self._add_ssp_raw_samples():
-                    self.print_error("unable to add ssp raw samples")
+                    log.error("unable to add ssp raw samples")
                     return False
 
                 if not self._add_ssp_mod_samples():
-                    self.print_error("unable to add ssp modified samples")
+                    log.error("unable to add ssp modified samples")
                     return False
 
                 if self.tmp_data.sis_data is not None:
                     if not self._add_ssp_sis_samples():
-                        self.print_error("unable to add ssp sis samples")
+                        log.error("unable to add ssp sis samples")
                         return False
 
         return True
@@ -214,18 +214,18 @@ class SspDb(BaseDbObject):
             ret = self.conn.execute("""
                                     SELECT COUNT(survey_name) FROM survey WHERE survey_name=?
                                     """, (self.tmp_data.survey_name, )).fetchone()
-            print("found %s survey named %s" % (ret[0], self.tmp_data.survey_name))
+            log.info("found %s survey named %s" % (ret[0], self.tmp_data.survey_name))
 
             if ret[0] == 0:
                 srv_row = (self.tmp_data.survey_name, dt.now(), str(__version__), "")
-                self.print_info("inserting: %s" % ", ".join(map(str, srv_row)))
+                log.info("inserting: %s" % ", ".join(map(str, srv_row)))
 
                 self.conn.execute("""
                                   INSERT INTO survey VALUES (?, ?, ?, ?)
                                   """, srv_row)
 
         except sqlite3.Error as e:
-            self.print_error("%s: %s" % (type(e), e))
+            log.error("%s: %s" % (type(e), e))
             return False
 
         return True
@@ -233,7 +233,7 @@ class SspDb(BaseDbObject):
     def _get_ssp_pk(self):
 
         if not self.conn:
-            self.print_error("missing db connection")
+            log.error("missing db connection")
             return False
 
         try:
@@ -244,7 +244,7 @@ class SspDb(BaseDbObject):
                                           SspDb.Point(self.tmp_data.longitude, self.tmp_data.latitude),)).fetchone()
             # if not present, add it
             if ret[0] == 0:
-                self.print_info("add new spp pk for %s @ %s"
+                log.info("add new spp pk for %s @ %s"
                                 % (self.tmp_data.date_time,
                                    SspDb.Point(self.tmp_data.longitude, self.tmp_data.latitude)))
                 self.conn.execute("""
@@ -252,7 +252,7 @@ class SspDb(BaseDbObject):
                                   """, (self.tmp_data.date_time,
                                         SspDb.Point(self.tmp_data.longitude, self.tmp_data.latitude)))
         except sqlite3.Error as e:
-            self.print_error("during ssp pk check, %s: %s" % (type(e), e))
+            log.error("during ssp pk check, %s: %s" % (type(e), e))
             return False
 
         try:
@@ -261,11 +261,11 @@ class SspDb(BaseDbObject):
                                     SELECT rowid FROM ssp_pk WHERE cast_datetime=? AND cast_position=?
                                     """, (self.tmp_data.date_time,
                                           SspDb.Point(self.tmp_data.longitude, self.tmp_data.latitude),)).fetchone()
-            self.print_info("spp pk: %s" % ret[b'id'])
+            log.info("spp pk: %s" % ret[b'id'])
             self.tmp_ssp_pk = ret[b'id']
 
         except sqlite3.Error as e:
-            self.print_error("during ssp pk retrieve, %s: %s" % (type(e), e))
+            log.error("during ssp pk retrieve, %s: %s" % (type(e), e))
             return False
 
         return True
@@ -275,43 +275,43 @@ class SspDb(BaseDbObject):
 
         try:
             self.conn.execute("""DELETE FROM raw_samples WHERE ssp_pk=?""", (self.tmp_ssp_pk, ))
-            self.print_info("deleted %s pk entries from raw_samples" % self.tmp_ssp_pk)
+            log.info("deleted %s pk entries from raw_samples" % self.tmp_ssp_pk)
 
         except sqlite3.Error as e:
-            self.print_error("during deletion from raw_samples, %s: %s" % (type(e), e))
+            log.error("during deletion from raw_samples, %s: %s" % (type(e), e))
             return False
 
         try:
             self.conn.execute("""DELETE FROM mod_samples WHERE ssp_pk=?""", (self.tmp_ssp_pk, ))
-            self.print_info("deleted %s pk entries from mod_samples" % self.tmp_ssp_pk)
+            log.info("deleted %s pk entries from mod_samples" % self.tmp_ssp_pk)
 
         except sqlite3.Error as e:
-            self.print_error("during deletion from mod_samples, %s: %s" % (type(e), e))
+            log.error("during deletion from mod_samples, %s: %s" % (type(e), e))
             return False
 
         try:
             self.conn.execute("""DELETE FROM sis_samples WHERE ssp_pk=?""", (self.tmp_ssp_pk, ))
-            self.print_info("deleted %s pk entries from sis_samples" % self.tmp_ssp_pk)
+            log.info("deleted %s pk entries from sis_samples" % self.tmp_ssp_pk)
 
         except sqlite3.Error as e:
-            self.print_error("during deletion from sis_samples, %s: %s" % (type(e), e))
+            log.error("during deletion from sis_samples, %s: %s" % (type(e), e))
             return False
 
         try:
             self.conn.execute("""DELETE FROM ssp WHERE pk=?""", (self.tmp_ssp_pk, ))
-            self.print_info("deleted %s pk entry from ssp" % self.tmp_ssp_pk)
+            log.info("deleted %s pk entry from ssp" % self.tmp_ssp_pk)
 
         except sqlite3.Error as e:
-            self.print_error("during deletion from ssp, %s: %s" % (type(e), e))
+            log.error("during deletion from ssp, %s: %s" % (type(e), e))
             return False
 
         if full:
             try:
                 self.conn.execute("""DELETE FROM ssp_pk WHERE id=?""", (self.tmp_ssp_pk, ))
-                self.print_info("deleted %s id entry from ssp_pk" % self.tmp_ssp_pk)
+                log.info("deleted %s id entry from ssp_pk" % self.tmp_ssp_pk)
 
             except sqlite3.Error as e:
-                self.print_error("during deletion from ssp_pk, %s: %s" % (type(e), e))
+                log.error("during deletion from ssp_pk, %s: %s" % (type(e), e))
                 return False
 
         return True
@@ -327,10 +327,10 @@ class SspDb(BaseDbObject):
                                     self.tmp_data.sensor_type,
                                     self.tmp_data.source_info,
                                     self.tmp_data.driver))
-            self.print_info("insert new %s pk in ssp" % self.tmp_ssp_pk)
+            log.info("insert new %s pk in ssp" % self.tmp_ssp_pk)
 
         except sqlite3.Error as e:
-            self.print_error("during ssp addition, %s: %s" % (type(e), e))
+            log.error("during ssp addition, %s: %s" % (type(e), e))
             return False
 
         return True
@@ -338,7 +338,7 @@ class SspDb(BaseDbObject):
     def _add_ssp_raw_samples(self):
 
         sample_size = self.tmp_data.raw_data[Dicts.idx['depth'], :].size
-        self.print_info("max raw samples to add: %s" % sample_size)
+        log.info("max raw samples to add: %s" % sample_size)
 
         added_samples = 0
         for i in range(sample_size):
@@ -359,19 +359,19 @@ class SspDb(BaseDbObject):
                                         ))
                 added_samples += 1
             except sqlite3.IntegrityError as e:
-                self.print_info("skipping row #%s due to %s: %s" % (i, type(e), e))
+                log.info("skipping row #%s due to %s: %s" % (i, type(e), e))
                 continue
             except sqlite3.Error as e:
-                self.print_error("during adding ssp raw samples, %s: %s" % (type(e), e))
+                log.error("during adding ssp raw samples, %s: %s" % (type(e), e))
                 return False
 
-        self.print_info("added %s raw samples" % added_samples)
+        log.info("added %s raw samples" % added_samples)
         return True
 
     def _add_ssp_mod_samples(self):
 
         sample_size = self.tmp_data.data[Dicts.idx['depth'], :].size
-        self.print_info("max processed samples to add: %s" % sample_size)
+        log.info("max processed samples to add: %s" % sample_size)
 
         added_samples = 0
         for i in range(sample_size):
@@ -393,24 +393,24 @@ class SspDb(BaseDbObject):
                 added_samples += 1
 
             except sqlite3.IntegrityError as e:
-                self.print_info("skipping row #%s due to %s: %s" % (i, type(e), e))
+                log.info("skipping row #%s due to %s: %s" % (i, type(e), e))
                 continue
             except sqlite3.Error as e:
-                self.print_error("during adding ssp processed samples, %s: %s" % (type(e), e))
+                log.error("during adding ssp processed samples, %s: %s" % (type(e), e))
                 return False
 
-        self.print_info("added %s processed samples" % added_samples)
+        log.info("added %s processed samples" % added_samples)
         return True
 
     def _add_ssp_sis_samples(self):
 
         sample_size = self.tmp_data.sis_data[Dicts.idx['depth'], :].size
-        self.print_info("max sis samples to add: %s" % sample_size)
+        log.info("max sis samples to add: %s" % sample_size)
 
         added_samples = 0
         for i in range(sample_size):
             sample_row = self.tmp_data.sis_data[:, i]
-            #print(sample_row)
+            # print(sample_row)
 
             try:
                 # first check if the sample is already present with exactly the same values
@@ -427,19 +427,19 @@ class SspDb(BaseDbObject):
                 added_samples += 1
 
             except sqlite3.IntegrityError as e:
-                self.print_info("skipping row #%s due to %s: %s" % (i, type(e), e))
+                log.info("skipping row #%s due to %s: %s" % (i, type(e), e))
                 continue
 
             except sqlite3.Error as e:
-                self.print_error("during adding ssp sis samples, %s: %s" % (type(e), e))
+                log.error("during adding ssp sis samples, %s: %s" % (type(e), e))
                 return False
 
-        self.print_info("added %s sis samples" % added_samples)
+        log.info("added %s sis samples" % added_samples)
         return True
 
     def list_all_ssp_pks(self):
         if not self.conn:
-            self.print_error("missing db connection")
+            log.error("missing db connection")
             return None
 
         ssp_list = list()
@@ -453,16 +453,16 @@ class SspDb(BaseDbObject):
             return ssp_list
 
         except sqlite3.Error as e:
-            self.print_error("%s: %s" % (type(e), e))
+            log.error("%s: %s" % (type(e), e))
             return None
 
     def list_ssp_pks_by_survey_name(self, survey_name="default"):
         if not self.conn:
-            self.print_error("missing db connection")
+            log.error("missing db connection")
             return None
 
         ssp_list = list()
-        self.print_info("get casts by survey name: %s" % survey_name)
+        log.info("get casts by survey name: %s" % survey_name)
 
         try:
             with self.conn:
@@ -473,18 +473,18 @@ class SspDb(BaseDbObject):
                                      row[b'sensor_type'],))
 
         except sqlite3.Error as e:
-            self.print_error("%s: %s" % (type(e), e))
+            log.error("%s: %s" % (type(e), e))
             return None
 
         return ssp_list
 
     def get_ssp_by_pk(self, pk):
         if not self.conn:
-            self.print_error("missing db connection")
+            log.error("missing db connection")
             return None
 
         ssp_data = SspData()
-        self.print_info("get ssp by primary key: %s" % pk)
+        log.info("get ssp by primary key: %s" % pk)
 
         with self.conn:
             try:
@@ -497,7 +497,7 @@ class SspDb(BaseDbObject):
                 ssp_data.latitude = ssp_idx[b'cast_position'].y
 
             except sqlite3.Error as e:
-                self.print_error("reading ssp spatial timestamp for %s pk, %s: %s" % (pk, type(e), e))
+                log.error("reading ssp spatial timestamp for %s pk, %s: %s" % (pk, type(e), e))
                 return None
 
             try:
@@ -512,7 +512,7 @@ class SspDb(BaseDbObject):
                 ssp_data.driver = ssp_hdr[b'driver']
 
             except sqlite3.Error as e:
-                self.print_error("reading ssp metadata for %s pk, %s: %s" % (pk, type(e), e))
+                log.error("reading ssp metadata for %s pk, %s: %s" % (pk, type(e), e))
                 return None
 
             try:
@@ -541,7 +541,7 @@ class SspDb(BaseDbObject):
                                          temperature=temperatures, salinity=salinities,
                                          source=sources, flag=flags)
             except sqlite3.Error as e:
-                self.print_error("reading raw samples for %s pk, %s: %s" % (pk, type(e), e))
+                log.error("reading raw samples for %s pk, %s: %s" % (pk, type(e), e))
                 return None
 
             try:
@@ -570,7 +570,7 @@ class SspDb(BaseDbObject):
                                      temperature=temperatures, salinity=salinities,
                                      source=sources, flag=flags)
             except sqlite3.Error as e:
-                self.print_error("reading processed samples for %s pk, %s: %s" % (pk, type(e), e))
+                log.error("reading processed samples for %s pk, %s: %s" % (pk, type(e), e))
                 return None
 
             try:
@@ -600,14 +600,14 @@ class SspDb(BaseDbObject):
                                          source=sources, flag=flags)
 
             except sqlite3.Error as e:
-                self.print_error("reading sis samples for %s pk, %s: %s" % (pk, type(e), e))
+                log.error("reading sis samples for %s pk, %s: %s" % (pk, type(e), e))
                 return None
 
         return ssp_data
 
     def _get_all_ssp_view_rows(self):
         if not self.conn:
-            self.print_error("missing db connection")
+            log.error("missing db connection")
             return None
 
         with self.conn:
@@ -616,18 +616,18 @@ class SspDb(BaseDbObject):
                 ssp_view = self.conn.execute("""
                                              SELECT * FROM ssp_view
                                              """).fetchall()
-                self.print_info("retrieved %s rows from ssp view" % len(ssp_view))
+                log.info("retrieved %s rows from ssp view" % len(ssp_view))
                 return ssp_view
 
             except sqlite3.Error as e:
-                self.print_error("retrieving all ssp view rows, %s: %s" % (type(e), e))
+                log.error("retrieving all ssp view rows, %s: %s" % (type(e), e))
                 return None
 
     def _create_ogr_lyr_and_fields(self, ds):
         # create the only data layer
         lyr = ds.CreateLayer(b'ssp', None, ogr.wkbPoint)
         if lyr is None:
-            self.print_error("Layer creation failed")
+            log.error("Layer creation failed")
             return
 
         field_pk = ogr.FieldDefn(b'pk', ogr.OFTInteger)
@@ -667,8 +667,7 @@ class SspDb(BaseDbObject):
 
     def convert_ssp_view_to_ogr(self, ogr_format=GdalAux.ogr_formats[b'ESRI Shapefile']):
 
-        GdalAux(verbose=True)
-        #GdalAux.list_ogr_drivers()
+        GdalAux()
 
         # create the data source
         try:
@@ -676,7 +675,7 @@ class SspDb(BaseDbObject):
             lyr = self._create_ogr_lyr_and_fields(ds)
 
         except HyOError as e:
-            self.print_error("%s" % e)
+            log.error("%s" % e)
             return
 
         view_rows = self._get_all_ssp_view_rows()
@@ -780,7 +779,7 @@ class SspDb(BaseDbObject):
         ssp_y_max = max(ssp_y)
         ssp_y_mean = (ssp_y_min + ssp_y_max) / 2
         ssp_y_delta = max(0.05, abs(ssp_y_max - ssp_y_min)/5)
-        self.print_info("data boundary: %.4f, %.4f (%.4f) / %.4f, %.4f (%.4f)"
+        log.info("data boundary: %.4f, %.4f (%.4f) / %.4f, %.4f (%.4f)"
                         % (ssp_x_min, ssp_x_max, ssp_x_delta, ssp_y_min, ssp_y_max, ssp_y_delta))
 
         # make the world map
@@ -797,7 +796,20 @@ class SspDb(BaseDbObject):
             ssp_loc = 2
         else:
             ssp_loc = 1
-        ax_ins = zoomed_inset_axes(ax, 15, loc=ssp_loc)
+
+        max_delta_range = max(abs(ssp_x_min-ssp_x_max),abs(ssp_y_min-ssp_y_max))
+        log.info("maximum delta range: %s" % max_delta_range)
+        if max_delta_range > 15:
+            ins_scale = 6
+        elif max_delta_range > 12:
+            ins_scale = 9
+        elif max_delta_range > 6:
+            ins_scale = 12
+        elif max_delta_range > 3:
+            ins_scale = 15
+        else:
+            ins_scale = 18
+        ax_ins = zoomed_inset_axes(ax, ins_scale, loc=ssp_loc)
         ax_ins.set_xlim((ssp_x_min - ssp_x_delta), (ssp_x_max + ssp_x_delta))
         ax_ins.set_ylim((ssp_y_min - ssp_y_delta), (ssp_y_max + ssp_y_delta))
 
@@ -825,7 +837,7 @@ class SspDb(BaseDbObject):
         """Create and return the timestamp list (and the pk)"""
 
         if not self.conn:
-            self.print_error("missing db connection")
+            log.error("missing db connection")
             return None
 
         with self.conn:
@@ -834,20 +846,20 @@ class SspDb(BaseDbObject):
                 ts_list = self.conn.execute("""
                                              SELECT cast_datetime, pk FROM ssp_view ORDER BY cast_datetime
                                              """).fetchall()
-                self.print_info("retrieved %s timestamps from ssp view" % len(ts_list))
+                log.info("retrieved %s timestamps from ssp view" % len(ts_list))
                 return ts_list
 
             except sqlite3.Error as e:
-                self.print_error("retrieving the time stamp list, %s: %s" % (type(e), e))
+                log.error("retrieving the time stamp list, %s: %s" % (type(e), e))
                 return None
 
     def get_cleaned_raw_ssp_by_pk(self, pk):
         if not self.conn:
-            self.print_error("missing db connection")
+            log.error("missing db connection")
             return None
 
         ssp_data = SspData()
-        self.print_info("get cleaned raw ssp by primary key: %s" % pk)
+        log.info("get cleaned raw ssp by primary key: %s" % pk)
 
         with self.conn:
             try:
@@ -860,7 +872,7 @@ class SspDb(BaseDbObject):
                 ssp_data.latitude = ssp_idx[b'cast_position'].y
 
             except sqlite3.Error as e:
-                self.print_error("reading ssp spatial timestamp for %s pk, %s: %s" % (pk, type(e), e))
+                log.error("reading ssp spatial timestamp for %s pk, %s: %s" % (pk, type(e), e))
                 return None
 
             try:
@@ -875,7 +887,7 @@ class SspDb(BaseDbObject):
                 ssp_data.driver = ssp_hdr[b'driver']
 
             except sqlite3.Error as e:
-                self.print_error("reading ssp metadata for %s pk, %s: %s" % (pk, type(e), e))
+                log.error("reading ssp metadata for %s pk, %s: %s" % (pk, type(e), e))
                 return None
 
             try:
@@ -904,7 +916,7 @@ class SspDb(BaseDbObject):
                                      temperature=temperatures, salinity=salinities,
                                      source=sources, flag=flags)
             except sqlite3.Error as e:
-                self.print_error("reading cleaned raw samples for %s pk, %s: %s" % (pk, type(e), e))
+                log.error("reading cleaned raw samples for %s pk, %s: %s" % (pk, type(e), e))
                 return None
 
         return ssp_data
@@ -922,9 +934,13 @@ class SspDb(BaseDbObject):
         ssp_count = 0
         current_date = None
         fig = None
+        first_fig = True
         for ts_pk in ts_list:
 
-            ssp_count += 1
+            if first_fig:
+                first_fig = False
+            else:
+                ssp_count += 1
             tmp_date = ts_pk[0].date()
 
             if (current_date is None) or (tmp_date > current_date):
@@ -960,7 +976,7 @@ class SspDb(BaseDbObject):
                 ax = fig.add_subplot(111)
                 ax.invert_yaxis()
                 current_date = tmp_date
-                self.print_info("day: %s" % day_count)
+                log.info("day: %s" % day_count)
                 day_count += 1
 
             tmp_ssp = self.get_cleaned_raw_ssp_by_pk(ts_pk[1])
@@ -970,7 +986,7 @@ class SspDb(BaseDbObject):
                     label='%s [%04d] ' % (ts_pk[0].time(), ts_pk[1]))
             ax.hold(True)
 
-            #print(ts_pk[1], ts_pk[0])
+            # print(ts_pk[1], ts_pk[0])
 
         # last figure
         ssp_count += 1

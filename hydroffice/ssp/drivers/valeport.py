@@ -3,6 +3,9 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import datetime as dt
 
 import numpy as np
+import logging
+
+log = logging.getLogger(__name__)
 
 from .base_format import BaseFormat
 from .. import __version__
@@ -18,9 +21,8 @@ class Valeport(BaseFormat):
         Dicts.probe_types['Unknown']: Dicts.sensor_types["Unknown"]
     }
 
-    def __init__(self, file_content, verbose=True, callback_print_func=None):
-        super(Valeport, self).__init__(file_content=file_content, verbose=verbose,
-                                       callback_print_func=callback_print_func)
+    def __init__(self, file_content):
+        super(Valeport, self).__init__(file_content=file_content)
         self.name = "VAL"
 
         self.start_data_token = ""
@@ -29,14 +31,14 @@ class Valeport(BaseFormat):
         self.probe_type_token = ""
         self.filename_token = ""
 
-        self.print_info("reading ...")
+        log.info("reading ...")
         lines = self.file_content.splitlines()
 
         self._read_header(lines)
         self._read_body(lines)
 
     def _read_header(self, lines):
-        self.print_info("reading > header")
+        log.info("reading > header")
 
         if self.file_content[:3] == 'Now':  # MiniSVP
             self.driver = self.name + ".MiniSVP" + (".%s" % __version__)
@@ -70,29 +72,29 @@ class Valeport(BaseFormat):
                     # print hour, ':', minute, ':', second
                     if (year is not None) and (hour is not None):
                         self.dg_time = dt.datetime(year, month, day, hour, minute, second)
-                        self.print_info("date time: %s" % self.dg_time)
+                        log.info("date time: %s" % self.dg_time)
                 except ValueError:
-                    self.print_error("unable to parse date and time: %s" % line)
+                    log.error("unable to parse date and time: %s" % line)
 
             elif line[:len(self.latitude_token)] == self.latitude_token:
                 try:
                     self.latitude = float(line.split(':')[-1])
-                    self.print_info("latitude: %s" % self.latitude)
+                    log.info("latitude: %s" % self.latitude)
                 except ValueError:
-                    self.print_error("unable to parse latitude: %s" % line)
+                    log.error("unable to parse latitude: %s" % line)
 
             elif line[:len(self.probe_type_token)] == self.probe_type_token:
                 self.probe_type = Dicts.probe_types['MiniSVP']
                 try:
                     self.sensor_type = self.sensor_index[self.probe_type]
-                    self.print_info("probe type: %s" % self.sensor_type)
+                    log.info("probe type: %s" % self.sensor_type)
                 except KeyError:
-                    self.print_error("unable to recognize probe type: %s" % line)
+                    log.error("unable to recognize probe type: %s" % line)
                     self.sensor_type = Dicts.sensor_types['Unknown']
             self.samples_offset += 1
 
         self.num_samples = len(lines) - self.samples_offset
-        self.print_info('total samples: %s' % self.num_samples)
+        log.info('total samples: %s' % self.num_samples)
 
         self.depth = np.zeros(self.num_samples)
         self.speed = np.zeros(self.num_samples)
@@ -123,36 +125,36 @@ class Valeport(BaseFormat):
                     day, month, year = [int(i) for i in date_string.split('/')]
                     hour, minute, second = [int(i) for i in time_string.split(':')]
                     self.dg_time = dt.datetime(year, month, day, hour, minute, second)
-                    self.print_info("time: %s" % self.dg_time)
+                    log.info("time: %s" % self.dg_time)
                 except ValueError:
-                    self.print_error("unable to parse time: %s" % line)
+                    log.error("unable to parse time: %s" % line)
 
             elif line[:len(self.filename_token)] == self.filename_token:
                 try:
                     self.original_path = line.split()[-1]
-                    self.print_info("filename: %s" % self.original_path)
+                    log.info("filename: %s" % self.original_path)
                 except ValueError:
-                    self.print_error("unable to parse filename: %s" % self.original_path)
+                    log.error("unable to parse filename: %s" % self.original_path)
 
             elif line[:len(self.probe_type_token)] == self.probe_type_token:
                 try:
                     self.probe_type = Dicts.probe_types[line.split(':')[-1].strip()]
-                    self.print_info("probe type: %s" % self.probe_type)
+                    log.info("probe type: %s" % self.probe_type)
                 except (ValueError, KeyError):
-                    self.print_error("unable to parse probe type: %s" % line)
+                    log.error("unable to parse probe type: %s" % line)
                     self.probe_type = Dicts.probe_types['Unknown']
 
                 try:
                     self.sensor_type = self.sensor_index[self.probe_type]
-                    self.print_info("sensor type: %s" % self.sensor_type)
+                    log.info("sensor type: %s" % self.sensor_type)
                 except KeyError:
-                    self.print_error("unable to find sensor type: %s" % line)
+                    log.error("unable to find sensor type: %s" % line)
                     self.sensor_type = Dicts.sensor_types['Unknown']
 
             self.samples_offset += 1
 
         self.num_samples = len(lines) - self.samples_offset
-        self.print_info('total samples: %s' % self.num_samples)
+        log.info('total samples: %s' % self.num_samples)
 
         self.depth = np.zeros(self.num_samples)
         self.speed = np.zeros(self.num_samples)
@@ -160,13 +162,13 @@ class Valeport(BaseFormat):
         self.salinity = np.zeros(self.num_samples)
 
     def _read_body(self, lines):
-        self.print_info("reading > body")
+        log.info("reading > body")
         if self.file_content[:3] == 'Now':  # MiniSVP
             self.parse_mini_svp_body(lines)
         else:  # MIDAS or Monitor
             self.parse_midas_body(lines)
 
-        self.print_info("number of samples: %s" % self.num_samples)
+        log.info("number of samples: %s" % self.num_samples)
 
     def parse_mini_svp_body(self, lines):
         count = 0
@@ -185,7 +187,7 @@ class Valeport(BaseFormat):
                 count += 1
 
             except ValueError:
-                self.print_error("unable to parse: %s" % line)
+                log.error("unable to parse: %s" % line)
                 break
 
         if self.num_samples != count:
@@ -210,12 +212,12 @@ class Valeport(BaseFormat):
                     continue
 
             except ValueError:
-                self.print_error("skipping line: %s" % count)
+                log.error("skipping line: %s" % count)
                 break
 
             count += 1
 
-        self.print_info("skipped %s lines with null sound speed" % null_ss_count)
+        log.info("skipped %s lines with null sound speed" % null_ss_count)
 
         if self.num_samples != count:
             self.depth.resize(count)

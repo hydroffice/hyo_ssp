@@ -1,19 +1,21 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-import math
-import socket
-import copy
-from datetime import datetime
 import functools
+import logging
+import math
 import operator
+import socket
+from datetime import datetime
 from io import open
 
 import numpy as np
 
+log = logging.getLogger(__name__)
+
 from .ssp_dicts import Dicts
 from .ssp_aux import SspAux
 from . import oceanography
-from .drivers.sippican.sippican import Sippican
+from hydroffice.ssp.drivers.sippican import Sippican
 from .drivers.valeport import Valeport
 from .drivers.turo import Turo
 from .drivers.seabird import Seabird
@@ -23,15 +25,12 @@ from .drivers.unb import Unb
 from .drivers.idronaut import Idronaut
 from .drivers.saiv import Saiv
 from .helper import SspError
-from ..base.base_objects import BaseObject
 
 
-class SspData(BaseObject):
-    """an SSP class that holds SSP data"""
+class SspData(object):
+    """ an SSP class that holds SSP data """
 
-    def __init__(self, verbose=True, callback_print_func=None):
-        super(SspData, self).__init__(verbose=verbose, callback_print_func=callback_print_func)
-        self.name = "SSP"
+    def __init__(self):
 
         self.date_time = None
         self.longitude = None
@@ -48,7 +47,7 @@ class SspData(BaseObject):
 
         self.tx_data = None
 
-    # #### input functions
+    # ### input functions ###
 
     def read_input_file_by_format(self, input_file, input_format):
 
@@ -86,71 +85,71 @@ class SspData(BaseObject):
                 or input_format == Dicts.import_formats["VALEPORT_MONITOR"]:
             ss_data = Valeport(file_content)
         else:
-            raise SspError("Unknown filetype to read: %s" % input_format)
+            raise SspError("Unknown file type to read: %s" % input_format)
         ss_data.original_path = input_file
 
-        self.print_info("raw:\n%s" % ss_data)
+        log.info("raw: %s" % ss_data)
 
         # set the collected information
         ss_data.convert_ssp(self)
 
-    ##### setting/getting functions
+    # #### setting/getting functions ###
 
     def set_time(self, ssp_time):
-        """set the time of the cast"""
+        """ set the time of the cast """
         self.date_time = ssp_time
 
     def set_position(self, latitude, longitude):
-        """set the position of the cast"""
+        """ set the position of the cast """
         self.latitude = latitude
         self.longitude = longitude
 
     def set_sis_samples(self, depth, speed, temperature, salinity, source, flag):
-        """copy the sis data into a multi array"""
+        """ copy the sis data into a multi array """
         self.sis_data = np.vstack([depth, speed, temperature, salinity, source, flag])
-        self.print_info("resulting sis data size: (%s, %s)" % self.sis_data.shape)
+        log.info("resulting sis data size: (%s, %s)" % self.sis_data.shape)
 
     def set_raw_samples(self, depth, speed, temperature, salinity, source, flag):
-        """copy the raw data into a multi array"""
+        """ copy the raw data into a multi array """
         self.raw_data = np.vstack([depth, speed, temperature, salinity, source, flag])
-        self.print_info("resulting raw data size: (%s, %s)" % self.raw_data.shape)
+        log.info("resulting raw data size: (%s, %s)" % self.raw_data.shape)
 
     def set_samples(self, depth, speed, temperature, salinity, source, flag):
-        """copy the processed data into a multi array"""
+        """ copy the processed data into a multi array """
         self.data = np.vstack([depth, speed, temperature, salinity, source, flag])
-        self.print_info("resulting processed data size: (%s, %s)" % self.data.shape)
+        log.info("resulting processed data size: (%s, %s)" % self.data.shape)
 
     def sorting_time(self):
-        """used to sort by time"""
+        """ used to sort by time """
         if not self.date_time:
-            self.print_info("missing date/time for %s/%s returning fake: %s"
-                            % (self.sensor_type, self.source_info, datetime(1, 1, 1)))
+            log.info("missing date/time for %s/%s returning fake: %s"
+                     % (self.sensor_type, self.source_info, datetime(1, 1, 1)))
             return datetime(1, 1, 1)
         else:
             return self.date_time
 
     def store_raw(self):
-        """storing raw data"""
-        self.print_info("storing raw data")
+        """ storing raw data """
+        log.info("storing raw data")
         self.raw_data = np.empty_like(self.data)
         self.raw_data[:] = self.data
 
     def restart_processing(self):
-        """Clean the sis data and the source_info, substitute processed with raw"""
+        """ Clean the sis data and the source_info, substitute processed with raw """
         self.sis_data = None
-        self.print_info("cleaned sis data")
+        log.info("cleaned sis data")
 
         self.source_info = self.source_info.split('/')[0]
-        self.print_info("cleaned source_info: %s" % self.source_info)
+        log.info("cleaned source_info: %s" % self.source_info)
 
         self.data = np.empty_like(self.raw_data)
-        self.data[:] =  self.raw_data
-        self.print_info("dropped processed data")
+        self.data[:] = self.raw_data
+        log.info("dropped processed data")
 
     def modify_source_info(self, added_info):
         source_info_tokens = self.source_info.split('/')
         self.source_info = str()
-        self.print_info("modifying source info with: %s" % added_info)
+        log.info("modifying source info with: %s" % added_info)
         info_found = False
         for i in range(len(source_info_tokens)):
             if added_info[:10] in source_info_tokens[i]:
@@ -165,7 +164,7 @@ class SspData(BaseObject):
         if not info_found:
             self.source_info += "/" + added_info
 
-    ##### processing functions
+    # ### processing functions ###
 
     def reduce_up_down(self, up_or_down_cast):
 
@@ -191,8 +190,8 @@ class SspData(BaseObject):
         self.data = SspAux.purge_flagged_samples(self.data)
 
     def extend(self, extender, ext_type):
-        """Use the extender samples to extend the profile"""
-        self.print_info("extension source type: %s" % ext_type)
+        """ Use the extender samples to extend the profile """
+        log.info("extension source type: %s" % ext_type)
         extender.data[Dicts.idx['source'], :] = ext_type
 
         # find the max valid depth in the current profile
@@ -205,13 +204,13 @@ class SspData(BaseObject):
         # find the depth values in the extender that are deeper than the current (valid) max depth
         ind2 = (extender.data[Dicts.idx['depth'], :] > max_depth)
         if ind2.size <= 0:
-            self.print_info("nothing to extend with")
+            log.info("nothing to extend with")
             return
 
         self.data = np.hstack([self.data, extender.data[:, ind2]])
 
     def insert_sample(self, depth, speed, temperature, salinity, source, flag=0):
-        """used to insert a new sample into the cast"""
+        """ used to insert a new sample into the cast """
 
         # create new empty arrays to store the new cast
         depth2 = np.zeros(self.data.shape[1] + 1)
@@ -321,7 +320,7 @@ class SspData(BaseObject):
         elif flag_mode == Dicts.inspections_mode['Unflag']:
             reject = 0
         else:
-            self.print_error("invalid flag: %s" % flag_mode)
+            log.error("invalid flag: %s" % flag_mode)
             return
 
         x_range.sort()
@@ -404,10 +403,10 @@ class SspData(BaseObject):
 
         self.modify_source_info("calc. depth")
 
-    ##### output functions
+    # #### output functions ###
 
     def _get_clean_sorted_data(self):
-        """Make a copy of the depth sorted good data only"""
+        """ Make a copy of the depth sorted good data only """
         good_pts = (self.data[Dicts.idx['flag'], :] == 0)
         tmp_data = self.data[:, self.data[Dicts.idx['depth'], good_pts].argsort()]
         data = np.empty_like(tmp_data)
@@ -415,7 +414,7 @@ class SspData(BaseObject):
         return data
 
     def prepare_sis_data(self, thin=True):
-        """copy the processed data and (optionally) apply thinning"""
+        """ copy the processed data and (optionally) apply thinning """
 
         self.sis_data = np.empty_like(self.data)
         self.sis_data[:] = self.data
@@ -424,7 +423,7 @@ class SspData(BaseObject):
             self.sis_data = SspAux.thin_ssp(0.1, self.sis_data)
 
     def convert_km(self, kng_fmt, thin=True):
-        """convert to Kongsberg formats"""
+        """ convert to Kongsberg formats """
 
         # Before doing whatever, copy the processed data to sis data so that we can modify it
         self.prepare_sis_data(thin)
@@ -726,7 +725,7 @@ class SspData(BaseObject):
         else:
             hemi = "E"
 
-        #self.print_info("Lon:", self.longitude, deg, min_value, min_whole, min_frac, hemi)
+        # self.print_info("Lon:", self.longitude, deg, min_value, min_whole, min_frac, hemi)
 
         output += "# LON (dddmm.mmmmmmm,N): %d%0.2d.%0.7d,%c\n" % (deg, min_whole, min_frac, hemi)
 
@@ -881,7 +880,7 @@ class SspData(BaseObject):
         sock_out.close()
         return True
 
-    ### DEBUGGING ###
+    # ### DEBUGGING ###
 
     def __str__(self):
 
@@ -1272,8 +1271,10 @@ class SspData(BaseObject):
     #             prev_velocity = previous_sv
     #             next_velocity = last_sv
     #
-    #             #print "Got interp'd time/distance/depth", interpolated_time, interpolated_distance, interpolated_depth
-    #             #print "Got accumulated time/distance/depth", accumulated_time, accumulated_distance, accumulated_depth
+    #             #print "Got interp'd time/distance/depth", interpolated_time, interpolated_distance,
+    #                    interpolated_depth
+    #             #print "Got accumulated time/distance/depth", accumulated_time, accumulated_distance,
+    #                     accumulated_depth
     #             #print "Got layer thickness", layer_thickness
     #             #print "Snell's constant", snells_constant
     #             #print "Starting with last angle", last_angle * 180.0/math.pi

@@ -1,117 +1,150 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
+import datetime as dt
+import logging
 import os
 import time
-import datetime as dt
+
 import numpy as np
 
-from hydroffice.base.log_db import LogEntry
+log = logging.getLogger(__name__)
+
 from hydroffice.base import project
+from hydroffice.base.logging_sqlite import SQLiteHandler
 from hydroffice.base.timerthread import TimerThread
 
-from .log_db import SspLogDb
 from .server import Server
 from .helper import Helper
 from .helper import SspError
 from .ssp_dicts import Dicts
 from .ssp import SspData
-from .settings import Settings
-from .drivers.mvp.mvpio import MvpCastIO
-#from .drivers.mvp.mvp_controller import MVPController
-from .drivers.km.kmio import KmIO
-from .drivers.sippican.sippicanio import SippicanIO
+from .settings.settings import Settings
+from .settings.user_inputs import UserInputs
+from .io.mvpio import MvpCastIO
+# from .drivers.mvp.mvp_controller import MVPController
+from .io.kmio import KmIO
+from .io.sippicanio import SippicanIO
 from .atlases import woa09
 from .atlases import rtofs
+from .logging_filters import ServerFilter, NotServerFilter
 
 
 class Project(project.Project):
-    """
-    SSP project
-    """
+    """ SSP project """
 
     here = os.path.abspath(os.path.dirname(__file__))
 
-    def __init__(self, with_listeners=True, with_woa09=True, with_rtofs=True,
-                 verbose=False, verbose_config=False,
-                 callback_debug_print=None):
-        super(Project, self).__init__(Helper.default_projects_folder(), verbose)
+    def __init__(self, with_woa09=True, with_rtofs=True, with_listeners=True):
+        super(Project, self).__init__(Helper.default_projects_folder())
 
-        self.verbose_config = verbose_config
-        self.callback_debug_print = callback_debug_print
-        if self.callback_debug_print:
-            self.print_info("project init")
-        self.log_db = SspLogDb()
-
-        self.server = Server(self)
-
+        # store input settings
+        self.with_woa09 = with_woa09
+        self.with_rtofs = with_rtofs
         self.with_listeners = with_listeners
 
-        # atlases settings
-        self.with_woa09 = with_woa09
-        self.woa09_atlas_loaded = False
-        if self.with_woa09:
-            self.woa09_atlas = woa09.Woa09()
-            self.ssp_woa = None
-            self.ssp_woa_min = None
-            self.ssp_woa_max = None
-
-        self.with_rtofs = with_rtofs
-        self.rtofs_atlas_loaded = False
-        if self.with_rtofs:
-            self.rtofs_atlas = rtofs.RTOFS()
-
-        self.server_timer = None
-
-        self.has_sippican_to_process = False
-        self.has_mvp_to_process = False
-
+        # in-use variables
+        self.ssp_data = SspData()
         self.filename = None
         self.filename_suffix = None
         self.time_of_last_tx = None
         self.surface_speed_applied = False
         self.ssp_applied_depth = 0  # > TODO: is properly applied in RunSever?
         self.has_ssp_loaded = False
-
         self.ssp_reference = None
         self.ssp_reference_filename = ""
-
-        self.s = Settings(verbose=verbose_config)
-        self.s.load_config()
-
-        self.ssp_data = SspData()
-
         self.mean_depth = None
         self.vessel_draft = None
         self.surface_sound_speed = None
+        # This is the default configuration
+        self.ssp_recipient_ip = "127.0.0.1"
+        self.ssp_recipient_port = 4001
 
+        # prepare settings
+        self.s = Settings()
+        self.s.load_settings_from_db()
+        self.u = UserInputs()
+
+        # Server
+        self.server = Server(self)
+        self.server_timer = None
+
+        #
+        # WOA09
+        #
+        self.woa09_atlas_loaded = False
+        if self.with_woa09:
+            self.woa09_atlas = woa09.Woa09()
+            self.ssp_woa = None
+            self.ssp_woa_min = None
+            self.ssp_woa_max = None
+            self.load_woa09_atlas()
+
+        #
+        # RTOFS
+        #
+        self.rtofs_atlas_loaded = False
+        if self.with_rtofs:
+            self.rtofs_atlas = rtofs.RTOFS()
+            self.load_rtofs_atlas()
+
+        #
         # listeners
+        #
         self.km_listener = None
 
+        self.has_mvp_to_process = False
         self.mvp_listener = None
         self.mvp_timer = None
         self.mvp_controller = None
         self.mvp_sensors_timer = None
 
+        self.has_sippican_to_process = False
         self.sippican_listener = None
         self.sippican_timer = None
-
-        # This is the default configuration
-        self.ssp_recipient_ip = "127.0.0.1"
-        self.ssp_recipient_port = 4001
-
-        # optional initialization
-        if self.with_woa09:
-            self.load_woa09_atlas()
-
-        if self.with_rtofs:
-            self.load_rtofs_atlas()
 
         if self.with_listeners:
             self.init_listeners()
             self._init_timers()
 
+        # initialize logging filters
+        self.log_sh = None
+        self.log_server_sh = None
+        self._init_logging_filters()
+
+    def load_woa09_atlas(self):
+        """ Load the WOA grid """
+        try:
+            self.woa09_atlas.load_grids(self.s.woa_path)
+        except SspError as e:
+            log.warning("While loading WOA09, %s" % e)
+            self.woa09_atlas_loaded = False
+            return False
+
+        self.woa09_atlas_loaded = True
+        return True
+
+    def load_rtofs_atlas(self):
+        """ Load the RTOFS grid """
+        try:
+            self.rtofs_atlas.load_grids(dt.datetime.utcnow())
+        except SspError as e:
+            log.warning("While loading RTOFS, %s" % e)
+            self.rtofs_atlas_loaded = False
+            return False
+        self.rtofs_atlas_loaded = True
+        return True
+
+    def _init_logging_filters(self):
+        self.log_sh = SQLiteHandler(db=os.path.join(Helper.default_projects_folder(), "__log__.db"))
+        self.log_sh.setLevel(logging.DEBUG)
+        self.log_sh.addFilter(NotServerFilter())
+
+        self.log_server_sh = SQLiteHandler(db=os.path.join(Helper.default_projects_folder(), "__server_log__.db"))
+        self.log_server_sh.setLevel(logging.DEBUG)
+        self.log_server_sh.addFilter(ServerFilter())
+
     def init_listeners(self):
-        """build listeners and start to listen"""
+        """ Build listeners and start to listen """
 
         self.km_listener = KmIO(self.s.km_listen_port, [0x50, 0x52, 0x55, 0x58], self.s.km_listen_timeout)
         self.km_listener.start_listen()
@@ -129,7 +162,7 @@ class Project(project.Project):
         # self.mvp_controller.start_listen()
 
     def _init_timers(self):
-        """initialize timers"""
+        """ initialize timers """
         # timer to monitor for Sippican inputs
         self.sippican_timer = TimerThread(self._monitor_sippican, timing=3)
         self.sippican_timer.start()
@@ -140,13 +173,13 @@ class Project(project.Project):
 
         # timer to monitor for MVP sensor input
         self.mvp_sensors_timer = TimerThread(self._monitor_mvp_sensors, timing=1.5)
-        #self.mvp_sensors_timer.start()
+        # self.mvp_sensors_timer.start()
 
     def open_file_format(self, filename, input_format, callback_date=None, callback_pos=None):
         filename_prefix = os.path.splitext(filename)[0]
         filename_suffix = os.path.splitext(filename)[1]
-        self.print_info("filename prefix: %s" % filename_prefix)
-        self.print_info("filename suffix: %s" % filename_suffix)
+        log.info("filename prefix: %s" % filename_prefix)
+        log.info("filename suffix: %s" % filename_suffix)
 
         # read the different file formats
         ssp = SspData()
@@ -205,7 +238,7 @@ class Project(project.Project):
                 raise SspError("missing date required for database lookup.")
 
         self.filename = filename
-        self.s.filename_prefix = filename_prefix
+        self.u.filename_prefix = filename_prefix
         self.filename_suffix = filename_suffix
 
         # calculating salinity and depth (it requires position)
@@ -225,7 +258,7 @@ class Project(project.Project):
             self.ssp_data.calc_salinity()
 
         self.has_ssp_loaded = True
-        self.print_info("resulting ssp:\n%s" % self.ssp_data)
+        log.info("resulting ssp:\n%s" % self.ssp_data)
 
         if self.woa09_atlas_loaded:
             self.ssp_woa, self.ssp_woa_min, self.ssp_woa_max = \
@@ -240,8 +273,7 @@ class Project(project.Project):
 
     def _monitor_sippican(self):
         if not self.sippican_listener.cast:
-            # if self.verbose:
-            #     print("SIP @ not new MVP cast")
+            # log.debug("not new SIPPICAN cast")
             return
 
         # Deal with the cast right away
@@ -249,7 +281,7 @@ class Project(project.Project):
         # Sippicans are always collected on Windows boxes and the filename
         # reported is a windows path name.
         self.filename = self.sippican_listener.cast.filename.split('\\')[-1]
-        self.s.filename_prefix = os.path.splitext(self.filename)[0]
+        self.u.filename_prefix = os.path.splitext(self.filename)[0]
 
         self.has_sippican_to_process = True
 
@@ -278,16 +310,15 @@ class Project(project.Project):
     def _monitor_mvp(self):
 
         if not self.mvp_listener.cast:
-            # if self.verbose:
-            #     print("MVP @ not new MVP cast")
+            # log.debug("not new MVP cast")
             return
 
         try:
             new_sv = self.mvp_listener.cast.convert_ssp()
-            print("MBP @ new cast at date/time: %s" % new_sv.date_time)
+            log.info("MBP @ new cast at date/time: %s" % new_sv.date_time)
         except SspError as e:
-            print("MBP @ failure in parsing MVP cast, the expected format was %s > %s"
-                  % (self.s.mvp_format, e))
+            log.info("MBP @ failure in parsing MVP cast, the expected format was %s > %s"
+                     % (self.s.mvp_format, e))
             return
 
         if self.server.is_running:
@@ -301,8 +332,8 @@ class Project(project.Project):
                 time.sleep(1)
                 count += 1
 
-        self.s.filename_prefix = new_sv.date_time.strftime("%Y%m%d_%H%M%S_MVP")
-        self.filename = self.s.filename_prefix + "." + self.s.mvp_format.lower()
+        self.u.filename_prefix = new_sv.date_time.strftime("%Y%m%d_%H%M%S_MVP")
+        self.filename = self.u.filename_prefix + "." + self.s.mvp_format.lower()
 
         self.ssp_data = new_sv
         if self.woa09_atlas_loaded:
@@ -317,17 +348,16 @@ class Project(project.Project):
         self.mvp_listener.cast = None
 
     def _monitor_mvp_sensors(self):
-        if self.verbose:
-            print("MVS @ date: %s" % self.mvp_controller.get_date())
-            print("MVS @ fish: %s" % self.mvp_controller.get_fish())
-            print("MVS @ nav: %s" % self.mvp_controller.get_nav())
+        log.info("MVS @ date: %s" % self.mvp_controller.get_date())
+        log.info("MVS @ fish: %s" % self.mvp_controller.get_fish())
+        log.info("MVS @ nav: %s" % self.mvp_controller.get_nav())
 
     def release(self):
         if not self.with_listeners:
             return
 
         if self.server.is_running:
-            self.print_info("stopping SIS server")
+            log.info("Stopping SIS server")
             self.server.stop()
 
         self.stop_listeners()
@@ -345,70 +375,52 @@ class Project(project.Project):
                 self.mvp_sensors_timer.stop()
 
         # close logging and disconnect
-        if self.s.log_processing_metadata:
-            self.print_info("END logging of processing metadata")
-        if self.s.log_server_metadata:
-            self.server_info("END logging of server metadata")
-        self.log_db.disconnect()
+        if self.u.log_processing_metadata:
+            self.deactivate_logging_on_db()
+        if self.u.log_server_metadata:
+            self.deactivate_server_logging_on_db()
 
     def stop_listeners(self):
-        self.print_info("stop listeners")
+        log.info("Stop listeners")
         self.km_listener.stop_listen()
         self.sippican_listener.stop_listen()
         self.mvp_listener.stop_listen()
-        #self.mvp_controller.stop_listen()
+        # self.mvp_controller.stop_listen()
 
     def has_running_listeners(self):
-        """check if all listeners are running"""
+        """ Check if all listeners are running """
         if not self.with_listeners:
             return False
+        if self.sippican_listener is None:
+            log.info("Sippican listener is not running")
+        if self.km_listener is None:
+            log.info("Kongsberg listener is not running")
+        if self.mvp_listener is None:
+            log.info("MVP listener is not running")
         running_flag = self.sippican_listener.listening and self.km_listener.listening and self.mvp_listener.listening
         return running_flag
 
-    def load_woa09_atlas(self):
-        """Load the WOA grid"""
-        try:
-            self.woa09_atlas.load_grids(self.s.woa_path)
-
-        except SspError:
-            self.woa09_atlas_loaded = False
-
-        self.woa09_atlas_loaded = True
-
-    def load_rtofs_atlas(self):
-        """Load the RTOFS grid"""
-        try:
-            self.rtofs_atlas.load_grids(dt.datetime.utcnow())
-
-        except SspError:
-            return False
-
-        self.rtofs_atlas_loaded = True
-        return True
-
     def send_cast(self, client, kng_fmt):
-
-        self.print_info("Transmitting cast to %s (port: %d)" % (client.IP, client.port))
+        log.info("Transmitting cast to %s (port: %d)" % (client.IP, client.port))
 
         if client.protocol == "SIS":
             self.km_listener.ssp = None
 
-        self.print_info("Sending to %s %s [format %s, protocol %s]"
-                        % (client.IP, client.port, kng_fmt, client.protocol))
+        log.info("Sending to %s %s [format %s, protocol %s]" % (client.IP, client.port, kng_fmt, client.protocol))
         client.send_cast(self.ssp_data, kng_fmt)
-        self.print_info("Just sent:\n%s" % self.ssp_data.tx_data)
+        log.info("Just sent:\n%s" % self.ssp_data.tx_data)
 
         if client.protocol != "SIS":
-            self.print_info("Transmitted cast, protocol does not allow verification")
+            log.info("Transmitted cast, protocol does not allow verification")
             time.sleep(5)
             return True
 
-        self.print_info("waiting for receipt confirmation...")
+        log.info("waiting for receipt confirmation...")
         # Give SIS some time to catch it and re-transmit it
         wait = 0
         while (not self.km_listener.ssp) and (wait < self.s.rx_max_wait_time):
             time.sleep(1)
-            self.print_info("waiting %s s ..." % wait)
+            log.info("waiting %s s ..." % wait)
             wait += 1
 
         # Split up the profile that was sent into depth/speed pairs
@@ -438,39 +450,39 @@ class Project(project.Project):
             # so can't compare times to ensure it's the same profile.  Comparing the sound speeds instead
             speeds_received = np.interp(depths, self.km_listener.ssp.depth, self.km_listener.ssp.speed)
             max_diff = max(abs(speeds - speeds_received))
-            self.print_info("Casts differ by %.1f m/s" % max_diff)
+            log.info("Casts differ by %.1f m/s" % max_diff)
 
             if max_diff < 0.2:
                 self.server.last_sent_ssp_time = self.km_listener.ssp.acquisition_time
                 return True
 
             else:
-                self.print_info("Reception not confirmed > Too big delta")
+                log.info("Reception not confirmed > Too big delta")
                 return False
         else:
-            self.print_info("Reception not confirmed > Unable to catch the back datagram")
+            log.info("Reception not confirmed > Unable to catch the back datagram")
             return False
 
     def formats_export(self, mode):
-        self.print_info("export mode: %s" % mode)
+        log.info("export mode: %s" % mode)
 
         export_directory = None
         if mode == "USER":
-            export_directory = self.s.user_export_directory
+            export_directory = self.u.user_export_directory
         elif mode == "SERVER":
             export_directory = os.path.join(self.get_output_folder(), "server")
             if not os.path.exists(export_directory):
                 os.makedirs(export_directory)
-        filename_prefix = self.s.filename_prefix
+        filename_prefix = self.u.filename_prefix
 
         num_exported = 0
-        for fmt in self.s.export_formats.keys():
-            if self.s.export_formats[fmt]:
+        for fmt in self.u.export_formats.keys():
+            if self.u.export_formats[fmt]:
                 self._format_export(export_directory, filename_prefix, fmt, mode)
                 num_exported += 1
 
         if num_exported:
-            self.print_info("exported %s files" % num_exported)
+            log.info("exported %s files" % num_exported)
 
     def _format_export(self, export_directory, filename_prefix, ssp_format, mode):
         # TODO: check the various configuration outputs
@@ -484,7 +496,7 @@ class Project(project.Project):
         elif mode == "SERVER":
             append_caris_file = self.s.server_append_caris_file
 
-        self.print_info("output filename: %s" % ssp_output)
+        log.info("output filename: %s" % ssp_output)
 
         data = self.ssp_data.convert(ssp_format)
         if not data:
@@ -508,97 +520,53 @@ class Project(project.Project):
     def clean_project(self):
         self.has_ssp_loaded = False
         self.filename = ""
-        self.s.filename_prefix = ""
+        self.u.filename_prefix = ""
 
     def count_export_formats(self):
-        """helper function to count the number of formats in export"""
+        """ helper function to count the number of formats in export """
         num_formats_to_export = 0
-        for fmt in self.s.export_formats.keys():
-            if self.s.export_formats[fmt]:
+        for fmt in self.u.export_formats.keys():
+            if self.u.export_formats[fmt]:
                 num_formats_to_export += 1
         return num_formats_to_export
+
+    def activate_logging_on_db(self):
+        self.u.log_processing_metadata = True
+        logging.getLogger().addHandler(self.log_sh)
+        log.info("START logging of processing metadata")
+
+    def deactivate_logging_on_db(self):
+        self.u.log_processing_metadata = False
+        log.info("END logging of processing metadata")
+        logging.getLogger().removeHandler(self.log_sh)
+
+    def activate_server_logging_on_db(self):
+        self.u.log_server_metadata = True
+        logging.getLogger().addHandler(self.log_server_sh)
+        log.info("START logging of server metadata")
+
+    def deactivate_server_logging_on_db(self):
+        self.u.log_server_metadata = False
+        log.info("END logging of server metadata")
+        logging.getLogger().removeHandler(self.log_server_sh)
 
     # ########### SIS ##############
 
     def get_cast_from_sis(self):
-        """Retrieve a cast from SIS"""
+        """ Retrieve a cast from SIS """
         self.km_listener.ssp = None
 
-        self.print_info("requesting IUR to: %s" % self.ssp_recipient_ip)
+        log.info("requesting IUR to: %s:%s" % (self.ssp_recipient_ip, self.ssp_recipient_port))
         self.km_listener.request_iur(self.ssp_recipient_ip)
 
         # Give SIS some time to transmit it
         wait = 0
-        self.print_info("waiting ...")
+        log.info("waiting ...")
         # This can require time when running on K-Sync with all the sounders waiting in the queue to fire in turn.
         max_wait = 60
         while (not self.km_listener.ssp) and (wait < max_wait):
-            self.print_info("... %s seconds" % wait)
+            log.info("... %s seconds" % wait)
             time.sleep(2)
             wait += 2
-        self.print_info("waited for %s seconds" % wait)
-        self.print_info("got a cast:\n\t%s" % self.km_listener.ssp)
-
-    # ########## DEBUGGING ############
-
-    def print_info(self, info):
-        if self.verbose:
-            if self.callback_debug_print:
-                self.callback_debug_print("PRJ > %s" % info)
-            else:
-                print("PRJ > %s" % info)
-
-        if self.s.log_processing_metadata:
-            self.log_db.add_entry(LogEntry(log_content=info, log_type=Dicts.log_types['info']))
-
-    def print_warning(self, info):
-        if self.verbose:
-            if self.callback_debug_print:
-                self.callback_debug_print("WARNING > %s" % info)
-            else:
-                print("PRJ > WARNING > %s" % info)
-
-        if self.s.log_processing_metadata:
-            self.log_db.add_entry(LogEntry(log_content=info, log_type=Dicts.log_types['warning']))
-
-    def print_error(self, info):
-        if self.verbose:
-            if self.callback_debug_print:
-                self.callback_debug_print("ERROR > %s" % info)
-            else:
-                print("PRJ > ERROR > %s" % info)
-
-        if self.s.log_processing_metadata:
-            self.log_db.add_entry(LogEntry(log_content=info, log_type=Dicts.log_types['error']))
-
-    # server
-
-    def server_info(self, info):
-        if self.verbose:
-            if self.callback_debug_print:
-                self.callback_debug_print("%s" % info)
-            else:
-                print("SRV > %s" % info)
-
-        if self.s.log_server_metadata:
-            self.log_db.add_entry(LogEntry(log_content=info, log_type=Dicts.log_types['server_info']))
-
-    def server_warning(self, info):
-        if self.verbose:
-            if self.callback_debug_print:
-                self.callback_debug_print("WARNING: %s" % info)
-            else:
-                print("SRV > WARNING > %s" % info)
-
-        if self.s.log_server_metadata:
-            self.log_db.add_entry(LogEntry(log_content=info, log_type=Dicts.log_types['server_warning']))
-
-    def server_error(self, info):
-        if self.verbose:
-            if self.callback_debug_print:
-                self.callback_debug_print("ERROR: %s" % info)
-            else:
-                print("SRV > ERROR > %s" % info)
-
-        if self.s.log_server_metadata:
-            self.log_db.add_entry(LogEntry(log_content=info, log_type=Dicts.log_types['server_error']))
+        log.info("waited for %s seconds" % wait)
+        log.info("got a cast:\n\t%s" % self.km_listener.ssp)

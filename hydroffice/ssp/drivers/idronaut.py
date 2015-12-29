@@ -2,6 +2,9 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import datetime as dt
 import numpy as np
+import logging
+
+log = logging.getLogger(__name__)
 
 from .base_format import BaseFormat, FormatError
 from .. import __version__
@@ -10,13 +13,12 @@ from ..ssp_dicts import Dicts
 
 class Idronaut(BaseFormat):
 
-    def __init__(self, file_content, verbose=True, callback_print_func=None):
-        super(Idronaut, self).__init__(file_content=file_content, verbose=verbose,
-                                       callback_print_func=callback_print_func)
+    def __init__(self, file_content):
+        super(Idronaut, self).__init__(file_content=file_content)
         self.name = "IDR"
         self.driver = self.name + (".%s" % __version__)
 
-        self.print_info("reading ...")
+        log.info("reading ...")
         lines = self.file_content.splitlines()
         self.depth_token = 'Depth'
         self.salinity_token = 'Salinity'
@@ -27,7 +29,7 @@ class Idronaut(BaseFormat):
         self._read_body(lines)
 
     def _read_header(self, lines):
-        self.print_info("reading > header")
+        log.info("reading > header")
         cast_token = 'cast'
         token_probe_type = 'cast probe type'
         token_start_time = 'cast start time'
@@ -55,7 +57,7 @@ class Idronaut(BaseFormat):
             if not got_cast_header:
                 if line[:len(cast_token)] == cast_token:
                     got_cast_header = True
-                    self.print_info("first \'cast\' line: %s" % self.samples_offset)
+                    log.info("first \'cast\' line: %s" % self.samples_offset)
                 else:
                     self.samples_offset += 1
                     continue
@@ -77,7 +79,7 @@ class Idronaut(BaseFormat):
                     column += 1
 
                 self.samples_offset += 1
-                self.print_info("samples offset: %s" % self.samples_offset)
+                log.info("samples offset: %s" % self.samples_offset)
                 break
 
             elif line[:len(token_probe_type)] == token_probe_type:
@@ -116,7 +118,7 @@ class Idronaut(BaseFormat):
                     lat_sign = 1.0
 
                 self.latitude = lat_sign * (lat_deg + lat_min / 60.0 + lat_sec / 3600.0)
-                self.print_info('lat: %s' % self.latitude)
+                log.info('lat: %s' % self.latitude)
 
             elif line[:len(token_start_longitude)] == token_start_longitude:
                 lon_token = line.split()[-1]
@@ -133,7 +135,7 @@ class Idronaut(BaseFormat):
                 else:
                     lon_sign = 1.0
                 self.longitude = lon_sign * (lon_deg + lon_min / 60.0 + lon_sec / 3600.0)
-                self.print_info('long: %s' % self.longitude)
+                log.info('long: %s' % self.longitude)
 
             self.samples_offset += 1
 
@@ -154,10 +156,10 @@ class Idronaut(BaseFormat):
 
         self.num_samples = len(lines) - self.samples_offset
         if probe_type != 'Idronaut':
-            self.print_info("unknown probe type: %s -> forcing Idronaut" % probe_type)
+            log.info("unknown probe type: %s -> forcing Idronaut" % probe_type)
             probe_type = 'Idronaut'
         self.probe_type = Dicts.probe_types[probe_type]
-        self.print_info("probe_type: %s" % self.probe_type)
+        log.info("probe_type: %s" % self.probe_type)
 
         self.depth = np.zeros(self.num_samples)
         self.speed = np.zeros(self.num_samples)
@@ -165,10 +167,10 @@ class Idronaut(BaseFormat):
         self.salinity = np.zeros(self.num_samples)
 
         self.sensor_type = Dicts.sensor_types['CTD']
-        self.print_info("sensor type: %s" % self.sensor_type)
+        log.info("sensor type: %s" % self.sensor_type)
 
     def _read_body(self, lines):
-        self.print_info("reading > body")
+        log.info("reading > body")
 
         count = 0
         for line in lines[self.samples_offset:len(lines)]:
@@ -182,7 +184,7 @@ class Idronaut(BaseFormat):
                 self.salinity[count] = float(data[self.data_index[self.salinity_token]])
 
             except ValueError:
-                self.print_error("invalid parsing of line: %s" % line)
+                log.error("invalid parsing of line: %s" % line)
                 continue
 
             count += 1

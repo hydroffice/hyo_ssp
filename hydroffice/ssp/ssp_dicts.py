@@ -1,5 +1,9 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
+import logging
+
+log = logging.getLogger(__name__)
+
 from .helper import SspError
 
 
@@ -7,12 +11,11 @@ class Dicts(object):
 
     @classmethod
     def first_match(cls, dct, val):
-        #print(dct, val)
+        # print(dct, val)
         values = [key for key, value in dct.items() if value == val]
         if len(values) != 0:
             return values[0]
         else:
-            print("Unknown value: %s" % val)
             raise SspError("Unknown value: %s" % val)
 
     import_formats = {
@@ -171,16 +174,4 @@ class Dicts(object):
         'prc': 1,
         'sis': 2,
         'hyp': 3
-    }
-
-    log_types = {
-        'info': 0,
-        'warning': 1,
-        'error': 2,
-        'server_info': 3,
-        'server_warning': 4,
-        'server_error': 5,
-        'thread_server_info': 6,
-        'thread_server_warning': 7,
-        'thread_server_error': 8,
     }

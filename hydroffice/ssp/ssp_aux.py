@@ -1,7 +1,10 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-from .ssp_dicts import Dicts
+import logging
 
+log = logging.getLogger(__name__)
+
+from .ssp_dicts import Dicts
 from .helper import SspError
 
 
@@ -9,7 +12,7 @@ class SspAux(object):
 
     @classmethod
     def purge_flagged_samples(cls, data):
-        """delete the flagged samples (if any) returning only the unflagged samples"""
+        """ delete the flagged samples (if any) returning only the unflagged samples """
 
         # isolate the good points
         good_pts = (data[Dicts.idx['flag'], :] == 0)

@@ -2,6 +2,9 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import datetime as dt
 import numpy as np
+import logging
+
+log = logging.getLogger(__name__)
 
 from .base_format import BaseFormat, FormatError
 from .. import __version__
@@ -10,13 +13,12 @@ from ..ssp_dicts import Dicts
 
 class Castaway(BaseFormat):
 
-    def __init__(self, file_content, verbose=True, callback_print_func=None):
-        super(Castaway, self).__init__(file_content=file_content, verbose=verbose,
-                                       callback_print_func=callback_print_func)
+    def __init__(self, file_content):
+        super(Castaway, self).__init__(file_content=file_content)
         self.name = "CST"
         self.driver = self.name + (".%s" % __version__)
 
-        self.print_info("reading ...")
+        log.info("reading ...")
         lines = self.file_content.splitlines()
         self.depth_token = 'Depth'
         self.salinity_token = 'Salinity'
@@ -27,7 +29,7 @@ class Castaway(BaseFormat):
         self._read_body(lines)
 
     def _read_header(self, lines):
-        self.print_info("reading > header")
+        log.info("reading > header")
         token_filename = '% File name'
         token_cast_time = '% Cast time (UTC)'
         token_latitude = '% Start latitude'
@@ -64,12 +66,12 @@ class Castaway(BaseFormat):
 
                     count += 1
                 self.samples_offset += 1
-                self.print_info("samples offset: %s" % self.samples_offset)
+                log.info("samples offset: %s" % self.samples_offset)
                 break
 
             elif line[:len(token_filename)] == token_filename:
                 self.original_path = line.split(",")[-1]
-                self.print_info("filename: %s" % self.original_path)
+                log.info("filename: %s" % self.original_path)
 
             elif line[:len(token_cast_time)] == token_cast_time:
                 try:
@@ -82,27 +84,27 @@ class Castaway(BaseFormat):
                         time_string = field.split()[-1]
                         hour, minute, second = [int(i) for i in time_string.split(':')]
                         utc_time = dt.datetime(year, month, day, hour, minute, second)
-                        self.print_info("date: %s" % utc_time)
+                        log.info("date: %s" % utc_time)
                 except ValueError:
-                    self.print_error("unable to parse date and time from: %s" % line)
+                    log.error("unable to parse date and time from: %s" % line)
 
             elif line[:len(token_latitude)] == token_latitude:
                 try:
                     lat_str = line.split(",")[-1]
                     if len(lat_str) != 0:
                         latitude = float(lat_str)
-                        self.print_info("latitude: %s" % latitude)
+                        log.info("latitude: %s" % latitude)
                 except ValueError:
-                    self.print_error("unable to parse latitude: %s" % line)
+                    log.error("unable to parse latitude: %s" % line)
 
             elif line[:len(token_longitude)] == token_longitude:
                 try:
                     lon_str = line.split(",")[-1]
                     if len(lon_str) != 0:
                         longitude = float(lon_str)
-                        self.print_info("longitude: %s" % longitude)
+                        log.info("longitude: %s" % longitude)
                 except ValueError:
-                    self.print_error("unable to parse longitude: %s" % line)
+                    log.error("unable to parse longitude: %s" % line)
 
             self.samples_offset += 1
 
@@ -123,7 +125,7 @@ class Castaway(BaseFormat):
         self.dg_time = utc_time
         
         self.num_samples = len(lines) - self.samples_offset
-        self.print_info("max samples: %s" % self.num_samples)
+        log.info("max samples: %s" % self.num_samples)
 
         self.depth = np.zeros(self.num_samples)
         self.speed = np.zeros(self.num_samples)
@@ -132,11 +134,11 @@ class Castaway(BaseFormat):
 
         self.sensor_type = Dicts.sensor_types['CTD']
         self.probe_type = Dicts.probe_types['Castaway']
-        self.print_info("sensor type: %s" % self.sensor_type)
-        self.print_info("probe_type: %s" % self.probe_type)
+        log.info("sensor type: %s" % self.sensor_type)
+        log.info("probe_type: %s" % self.probe_type)
 
     def _read_body(self, lines):
-        self.print_info("reading > body")
+        log.info("reading > body")
 
         count = 0
         for line in lines[self.samples_offset:len(lines)]:
@@ -166,5 +168,3 @@ class Castaway(BaseFormat):
             self.temperature.resize(count)
             self.salinity.resize(count)
             self.num_samples = count
-
-

@@ -1,8 +1,11 @@
-from __future__ import absolute_import, division, print_function
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import math
 import numpy as np
 import netCDF4
+import logging
+
+log = logging.getLogger(__name__)
 
 from .base_atlas import Atlas, AtlasError
 from ..ssp import SspData
@@ -13,12 +16,11 @@ from .. import __version__
 class Woa09(Atlas):
     """WOA class that deals with WOA queries"""
 
-    def __init__(self, verbose=True, callback_print_func=None):
-        super(Woa09, self).__init__(verbose, callback_print_func)
+    def __init__(self):
+        super(Woa09, self).__init__()
 
         self.name = "W09"
         self.source_info = "World Ocean Atlas 2009"
-
         self.woa_path = ""
 
         self.temperature_annual = None
@@ -57,7 +59,8 @@ class Woa09(Atlas):
             self.salinity_seasonal = netCDF4.Dataset(self.woa_path + "/salinity_seasonal_1deg.nc")
             self.landsea = np.genfromtxt(self.woa_path + "/landsea.msk").reshape((180, 360))
             self.basin = np.genfromtxt(self.woa_path + "/basin.msk").reshape((33, 180, 360))
-        except:
+        except Exception as e:
+            log.error(e)
             raise AtlasError("issue in reading the netCDF data")
 
         # What's our grid interval in lat/long
@@ -91,7 +94,7 @@ class Woa09(Atlas):
         return depth
 
     def query(self, latitude, longitude, date_time):
-        self.print_info("query: %s @ (%.6f, %.6f)" % (date_time, longitude, latitude))
+        log.info("query: %s @ (%.6f, %.6f)" % (date_time, longitude, latitude))
 
         if (latitude is None) or (longitude is None) or (date_time is None):
             return None, None, None
@@ -243,7 +246,7 @@ class Woa09(Atlas):
                 num_visited += 1
 
         if (lat_index == -1) and (lon_index == -1):
-            self.print_info("possible request on land")
+            log.info("possible request on land")
             return None, None, None
 
         lat_out = self.temperature_monthly.variables['lat'][lat_index]
@@ -312,7 +315,7 @@ class Woa09(Atlas):
         return ssp_data, ssp_min, ssp_max
 
     def close_files(self):
-        self.print_info("close")
+        log.info("close")
         self.temperature_monthly.close()
         self.temperature_seasonal.close()
         self.salinity_monthly.close()

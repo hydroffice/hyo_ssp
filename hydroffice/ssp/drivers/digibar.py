@@ -2,6 +2,9 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import datetime as dt
 import numpy as np
+import logging
+
+log = logging.getLogger(__name__)
 
 from .base_format import BaseFormat, FormatError
 from ..ssp_dicts import Dicts
@@ -10,9 +13,8 @@ from .. import __version__
 
 class DigibarPro(BaseFormat):
 
-    def __init__(self, file_content, input_format, verbose=True, callback_print_func=None):
-        super(DigibarPro, self).__init__(file_content=file_content, verbose=verbose,
-                                         callback_print_func=callback_print_func)
+    def __init__(self, file_content, input_format):
+        super(DigibarPro, self).__init__(file_content=file_content)
 
         if input_format != Dicts.import_formats["DIGIBAR_PRO"]:
             raise FormatError("invalid import format for this driver: %s" % input_format)
@@ -21,14 +23,14 @@ class DigibarPro(BaseFormat):
         self.model = input_format
         self.driver = "%s.%s.%s" % (self.name, Dicts.first_match(Dicts.import_formats, input_format), __version__)
 
-        self.print_info("reading ...")
+        log.info("reading ...")
         lines = self.file_content.splitlines()
 
         self._read_header(lines)
         self._read_body(lines)
 
     def _read_header(self, lines):
-        self.print_info("reading > header")
+        log.info("reading > header")
 
         token_cast_time = "DATE:"
 
@@ -53,18 +55,18 @@ class DigibarPro(BaseFormat):
                             minute = int(time_fields[-1][2:4])
                             self.dg_time += dt.timedelta(0, 0, 0, 0, minute, hour)
 
-                        self.print_info("date: %s" % self.dg_time)
+                        log.info("date: %s" % self.dg_time)
 
                 except ValueError:
-                    self.print_error("unable to parse date and time from: %s" % line)
+                    log.error("unable to parse date and time from: %s" % line)
 
         self.probe_type = Dicts.probe_types["SVP"]
-        self.print_info("probe type: %s" % self.probe_type)
+        log.info("probe type: %s" % self.probe_type)
         self.sensor_type = Dicts.sensor_types["SVP"]
-        self.print_info("sensor type: %s" % self.sensor_type)
+        log.info("sensor type: %s" % self.sensor_type)
 
         self.num_samples = len(lines)
-        self.print_info("max number of samples: %s" % self.num_samples)
+        log.info("max number of samples: %s" % self.num_samples)
 
         self.depth = np.zeros(self.num_samples)
         self.speed = np.zeros(self.num_samples)
@@ -72,7 +74,7 @@ class DigibarPro(BaseFormat):
         self.salinity = np.zeros(self.num_samples)
 
     def _read_body(self, lines):
-        self.print_info("reading > body")
+        log.info("reading > body")
 
         count = 0
         samples = 0
@@ -88,28 +90,28 @@ class DigibarPro(BaseFormat):
                 dpt, spd, tmp = line.split()
 
                 if spd == 0.0:
-                    self.print_info("skipping 0-speed row: %s" % line)
+                    log.info("skipping 0-speed row: %s" % line)
                     count += 1
                     continue
 
                 self.depth[samples] = dpt
                 self.speed[samples] = spd
                 self.temperature[samples] = tmp
-                self.print_info("%d %7.1f %7.1f %5.1f"
-                                % (samples, self.depth[samples], self.speed[samples], self.temperature[samples]))
+                log.info("%d %7.1f %7.1f %5.1f"
+                         % (samples, self.depth[samples], self.speed[samples], self.temperature[samples]))
 
             except ValueError:
-                self.print_error("skipping line %s" % count)
+                log.error("skipping line %s" % count)
                 count += 1
                 continue
 
             samples += 1
             count += 1
 
-        self.print_info("good samples: %s" % samples)
+        log.info("good samples: %s" % samples)
 
         if self.num_samples != samples:
-            self.print_info("resizing from %s to %s" % (self.num_samples, samples))
+            log.info("resizing from %s to %s" % (self.num_samples, samples))
             self.depth.resize(samples)
             self.speed.resize(samples)
             self.temperature.resize(samples)
@@ -119,9 +121,8 @@ class DigibarPro(BaseFormat):
 
 class DigibarS(BaseFormat):
 
-    def __init__(self, file_content, input_format, verbose=True, callback_print_func=None):
-        super(DigibarS, self).__init__(file_content=file_content, verbose=verbose,
-                                       callback_print_func=callback_print_func)
+    def __init__(self, file_content, input_format):
+        super(DigibarS, self).__init__(file_content=file_content)
 
         if input_format != Dicts.import_formats["DIGIBAR_S"]:
             raise FormatError("invalid import format for this driver: %s" % input_format)
@@ -131,29 +132,29 @@ class DigibarS(BaseFormat):
         name_format = [key for key, value in Dicts.import_formats.items() if value == input_format][0]
         self.driver = "%s.%s.%s" % (self.name, name_format, __version__)
 
-        self.print_info("reading ...")
+        log.info("reading ...")
         lines = self.file_content.splitlines()
 
         self._read_header(lines)
         self._read_body(lines)
 
     def _read_header(self, lines):
-        self.print_info("reading > header")
+        log.info("reading > header")
 
         self.probe_type = Dicts.probe_types['SVP']
-        self.print_info("probe type: %s" % self.probe_type)
+        log.info("probe type: %s" % self.probe_type)
         self.sensor_type = Dicts.sensor_types['SVP']
-        self.print_info("sensor type: %s" % self.sensor_type)
+        log.info("sensor type: %s" % self.sensor_type)
 
         self.num_samples = len(lines)
-        self.print_info("max number of samples: %s" % self.num_samples)
+        log.info("max number of samples: %s" % self.num_samples)
         self.depth = np.zeros(self.num_samples)
         self.speed = np.zeros(self.num_samples)
         self.temperature = np.zeros(self.num_samples)
         self.salinity = np.zeros(self.num_samples)
 
     def _read_body(self, lines):
-        self.print_info("reading > body")
+        log.info("reading > body")
 
         count = 0
         first_time = None
@@ -164,15 +165,15 @@ class DigibarS(BaseFormat):
                 # 7-30-13, 8:57:31, 1503.50, 0.80, 16.40, 4.10
                 date, time, spd, dpt, tmp, other = line.split(",")
                 if spd == 0.0:
-                    self.print_info("skipping 0-value speed")
+                    log.info("skipping 0-value speed")
                     continue
 
                 self.depth[count] = dpt
                 self.speed[count] = spd
                 self.temperature[count] = tmp
 
-                self.print_info("%s %s %7.1f %7.1f %5.1f %s"
-                                % (date, time, self.speed[count], self.depth[count], self.temperature[count], other))
+                log.info("%s %s %7.1f %7.1f %5.1f %s"
+                         % (date, time, self.speed[count], self.depth[count], self.temperature[count], other))
 
                 if not first_time:
                     first_time = time
@@ -181,30 +182,30 @@ class DigibarS(BaseFormat):
                     first_date = date
 
             except ValueError:
-                self.print_error("skipping line %s" % count)
+                log.error("skipping line %s" % count)
                 continue
 
             count += 1
 
-        self.print_info("total count: %s" % count)
+        log.info("total count: %s" % count)
 
         if self.num_samples != count:
-            self.print_info("resizing from %s to %s" % (self.num_samples, count))
+            log.info("resizing from %s to %s" % (self.num_samples, count))
             self.depth.resize(count)
             self.speed.resize(count)
             self.temperature.resize(count)
             self.salinity.resize(count)
             self.num_samples = count
 
-        self.print_info("original date/time: %s %s" % (first_date, first_time))
+        log.info("original date/time: %s %s" % (first_date, first_time))
         try:
             hour, minute, second = [int(i) for i in first_time.split(':')]
-            # self.print_info("converted %s:%s:%s" % (hour, minute, second))
+            # log.info("converted %s:%s:%s" % (hour, minute, second))
             month, day, year = [int(i) for i in first_date.split('-')]
-            # self.print_info("converted %s/%s/%s" % (month, day, year))
+            # log.info("converted %s/%s/%s" % (month, day, year))
             year += 2000
             self.dg_time = dt.datetime(year, month, day, hour, minute, second)
-            self.print_info("converted date/time: %s" % self.dg_time)
+            log.info("converted date/time: %s" % self.dg_time)
 
         except ValueError:
-            self.print_error("failure in date/time conversion")
+            log.error("failure in date/time conversion")

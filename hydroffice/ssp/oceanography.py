@@ -2,9 +2,12 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import numpy as np
 import math
+import logging
+
+log = logging.getLogger(__name__)
 
 
-def adtg(S, T, P):
+def _adtg(S, T, P):
     a0 = 3.5803E-5
     a1 = 8.5258E-6
     a2 = -6.836E-8
@@ -25,25 +28,25 @@ def adtg(S, T, P):
     e1 = 1.8676E-14
     e2 = -2.1687E-16
 
-    return a0 + (a1 + (a2 + a3 * T) * T) * T + (b0 + b1 * T) * (S - 35) + ((c0 + (c1 + (c2 + c3 * T) * T) * T) + (
-    d0 + d1 * T) * (S - 35)) * P + (e0 + (e1 + e2 * T) * T) * P * P
+    return a0 + (a1 + (a2 + a3 * T) * T) * T + (b0 + b1 * T) * (S - 35) + \
+        ((c0 + (c1 + (c2 + c3 * T) * T) * T) + (d0 + d1 * T) * (S - 35)) * P + (e0 + (e1 + e2 * T) * T) * P * P
 
 
 def potential_temperature(T, S, P, PR):
     delP = PR - P
-    delth = delP * adtg(S, T, P)
+    delth = delP * _adtg(S, T, P)
     th = T + 0.5 * delth
     q = delth
 
-    delth = delP * adtg(S, th, P + 0.5 * delP)
-    th = th + (1 - 1 / np.sqrt(2)) * (delth - q)
+    delth = delP * _adtg(S, th, P + 0.5 * delP)
+    th += (1 - 1 / np.sqrt(2)) * (delth - q)
     q = (2 - np.sqrt(2)) * delth + (-2 + 3 / np.sqrt(2)) * q
 
-    delth = delP * adtg(S, th, P + 0.5 * delP)
-    th = th + (1 + 1 / np.sqrt(2)) * (delth - q)
+    delth = delP * _adtg(S, th, P + 0.5 * delP)
+    th += (1 + 1 / np.sqrt(2)) * (delth - q)
     q = (2 + np.sqrt(2)) * delth + (-2 - 3 / np.sqrt(2)) * q
 
-    delth = delP * adtg(S, th, P + delP)
+    delth = delP * _adtg(S, th, P + delP)
     pottemp = th + (delth - 2 * q) / 6
 
     return pottemp
@@ -58,21 +61,21 @@ def insitu_temperature(T, S, P, P_ref):
         return (T)
 
         # Potential temperature function takes pressure in units of 10*kPa so multiply MPa * 1000 to get kPa, divide by 10 to them in 10*kPa, net result: multiply by 100
-        P = P * 100
-        P_ref = P_ref * 100
+        P *= 100
+        P_ref *= 100
 
     temperature = T
 
     new_pot_t = potential_temperature(T, S, P, P_ref)
 
-    if (new_pot_t < T):
+    if new_pot_t < T:
         sign = 1
     else:
         sign = -1
 
     dT = new_pot_t - temperature
 
-    while (np.abs(dT) > 0.001):
+    while np.abs(dT) > 0.001:
         temperature += sign * 0.001
         new_pot_t = potential_temperature(temperature, S, P, P_ref)
         dT = new_pot_t - T
@@ -105,20 +108,20 @@ def press2depth(press, lat):
     # latitude in decimal degrees
     # depth in metres
 
-    if lat == None:
+    if lat is None:
         lat = 30
 
-    press = press / 100
+    press /= 100
 
     rlat = lat * np.pi / 180
     rlat = np.sin(rlat)
 
     g = 9.780318 * (1 + 5.2788e-3 * rlat ** 2 + 2.36e-5 * rlat ** 4)
 
-    Depth = (9.72659e2 * press - 2.512e-1 * press ** 2 + 2.279e-4 * press ** 3 - 1.82e-7 * press ** 4) / (
-    g + 1.092e-4 * press)
+    depth = (9.72659e2 * press - 2.512e-1 * press ** 2 + 2.279e-4 * press ** 3 - 1.82e-7 * press ** 4) / \
+            (g + 1.092e-4 * press)
 
-    return Depth
+    return depth
 
 
 def salinity(depth, speed, temp, lat):
@@ -245,7 +248,7 @@ def salinity2conductivity(sal, pressure, temp):
 
     while conductivity < max_conductivity:
         calc_salinity = conductivity2salinity(conductivity, pressure, temp)
-        # print count, conductivity, calc_salinity, salinity
+        # log.debug("%f %f %f %f" % (count, conductivity, calc_salinity, salinity))
 
         if calc_salinity > sal:
             break
@@ -260,16 +263,15 @@ def salinity2conductivity(sal, pressure, temp):
 
     conductivity = last_conductivity + delta_cond / delta_sal * (sal - last_salinity)
 
-    # print "Interpolated conductivity:", conductivity
+    # log.debug("Interpolated conductivity: %f" % conductivity)
     # calc_salinity = conductivity2salinity( conductivity, P, T)
-    # print "Check new calc'd salinity against desired", calc_salinity, S
+    # log.debug("Check new calc'd salinity against desired %f %f" % (calc_salinity, S))
 
     return conductivity
 
 
 def conductivity2salinity(C, P, T):
-    # I got this from M. Tomczak who has a nice little
-    # javascript to do it on his website: http://www.es.flinders.edu.au/~mattom/Utilities/salcon.html
+    # From M. Tomczak little javascript on his website: http://www.es.flinders.edu.au/~mattom/Utilities/salcon.html
     # It's based on Fofonoff and Millard (1983)
     # Input units are conductivity in mmho/cm, pressure in dBar and temperature in deg. C.
 
@@ -344,7 +346,7 @@ def attenuation(f, T, S, D, pH):
     f2 = (8.17 * math.pow(10.0, 8.0 - 1990.0 / abs_temp)) / (1.0 + 0.0018 * (S - 35.0))
 
     # Pure Water Contribution
-    if (T <= 20.0):
+    if T <= 20.0:
         A3 = 4.937E-4 - 2.59E-5 * T + 9.11E-7 * T * T - 1.50E-8 * T * T * T
     else:
         A3 = 3.964E-4 - 1.146E-5 * T + 1.45E-7 * T * T - 6.5E-10 * T * T * T

@@ -3,37 +3,35 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 from abc import ABCMeta, abstractmethod
 
 import numpy as np
+import logging
 
-from ...base.base_objects import BaseObject
+log = logging.getLogger(__name__)
+
 from ..helper import SspError
 from ..ssp_dicts import Dicts
 
 
 class FormatError(SspError):
-    """
-    Error raised for format issues
-    """
+    """ Error raised for format issues """
     def __init__(self, message, *args):
         self.message = message
         # allow users initialize misc. arguments as any other builtin Error
         super(FormatError, self).__init__(message, *args)
 
 
-class BaseFormat(BaseObject):
-    """Common abstract data format"""
+class BaseFormat(object):
+    """ Common abstract data format """
 
     __metaclass__ = ABCMeta
 
     # A dictionary to store data type column indices
     data_index = {}
 
-    def __init__(self, file_content, verbose=False, callback_print_func=None):
-        super(BaseFormat, self).__init__(verbose=verbose, callback_print_func=callback_print_func)
+    def __init__(self, file_content):
+        super(BaseFormat, self).__init__()
         self.name = "FMT"
 
         self.file_content = file_content
-        self.verbose = verbose
-        self.callback_print_func = callback_print_func
 
         self.latitude = None
         self.longitude = None

@@ -3,6 +3,9 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import datetime as dt
 from time import strptime
 import numpy as np
+import logging
+
+log = logging.getLogger(__name__)
 
 from .base_format import BaseFormat, FormatError
 from .. import __version__
@@ -11,9 +14,8 @@ from ..ssp_dicts import Dicts
 
 class Seabird(BaseFormat):
 
-    def __init__(self, file_content, verbose=True, callback_print_func=None):
-        super(Seabird, self).__init__(file_content=file_content, verbose=verbose,
-                                      callback_print_func=callback_print_func)
+    def __init__(self, file_content):
+        super(Seabird, self).__init__(file_content=file_content)
         self.name = "SEB"
         self.driver = self.name + (".%s" % __version__)
 
@@ -29,14 +31,14 @@ class Seabird(BaseFormat):
         self.temp_token = ''
         self.sal_token = 'sal00'
 
-        self.print_info("reading ...")
+        log.info("reading ...")
         lines = self.file_content.splitlines()
 
         self._read_header(lines)
         self._read_body(lines)
 
     def _read_header(self, lines):
-        self.print_info("reading > header")
+        log.info("reading > header")
 
         got_depth = False
         got_speed = False
@@ -64,7 +66,7 @@ class Seabird(BaseFormat):
                     hour, minute, second = [int(i) for i in time_string.split(':')]
                     system_time = dt.datetime(year, month, day, hour, minute, second)
                 except ValueError:
-                    self.print_error("failure in reading time token: %s" % line)
+                    log.error("failure in reading time token: %s" % line)
 
             elif line[:len(self.time_2_token)] == self.time_2_token:
                 try:
@@ -76,7 +78,7 @@ class Seabird(BaseFormat):
                     hour, minute, second = [int(i) for i in time_string.split(':')]
                     utc_time = dt.datetime(year, month, day, hour, minute, second)
                 except ValueError:
-                    self.print_error("failure in reading time token: %s" % line)
+                    log.error("failure in reading time token: %s" % line)
 
             elif line[:len(self.filename_token)] == self.filename_token:
                 filename = line.split("=")[-1]
@@ -90,7 +92,7 @@ class Seabird(BaseFormat):
                     if hemisphere == "S":
                         latitude *= -1
                 except ValueError:
-                    self.print_error("failure in reading latitude token: %s" % line)
+                    log.error("failure in reading latitude token: %s" % line)
 
             elif line[:len(self.longitude_token)] == self.longitude_token:
                 try:
@@ -101,7 +103,7 @@ class Seabird(BaseFormat):
                     if hemisphere == "W":
                         longitude *= -1
                 except ValueError:
-                    self.print_error("failure in reading longitude token: %s" % line)
+                    log.error("failure in reading longitude token: %s" % line)
 
             elif line[:len(self.field_name_token)] == self.field_name_token:
                 column = line.split()[2]
@@ -121,13 +123,13 @@ class Seabird(BaseFormat):
 
         if not got_depth or not got_speed or not got_temperature or not got_salinity:
             if not got_depth:
-                self.print_error("Missing depth field (need depth 'depSM' field)")
+                log.error("Missing depth field (need depth 'depSM' field)")
             if not got_speed:
-                self.print_error("Missing speed field (need speed 'svCM' field)")
+                log.error("Missing speed field (need speed 'svCM' field)")
             if not got_temperature:
-                self.print_error("Missing temperature field (need temperature 't090C' or 'tv290C' field)")
+                log.error("Missing temperature field (need temperature 't090C' or 'tv290C' field)")
             if not got_salinity:
-                self.print_error("Missing salinity field (need salinity 'sal00' field)")
+                log.error("Missing salinity field (need salinity 'sal00' field)")
             return
 
         self.original_path = filename
@@ -155,7 +157,7 @@ class Seabird(BaseFormat):
         self.salinity = np.zeros(self.num_samples)
 
     def _read_body(self, lines):
-        self.print_info("reading > body")
+        log.info("reading > body")
 
         count = 0
         for line in lines[self.samples_offset:len(lines)]:
@@ -168,11 +170,11 @@ class Seabird(BaseFormat):
                 self.salinity[count] = float(data[self.data_index[self.sal_token]])
 
             except ValueError:
-                self.print_error("failure at sample %s" % count)
+                log.error("failure at sample %s" % count)
                 continue
             count += 1
 
-        self.print_info("parsed %s samples" % count)
+        log.info("parsed %s samples" % count)
 
         if self.num_samples != count:
             self.depth.resize(count)
