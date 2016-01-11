@@ -780,7 +780,7 @@ class SspDb(BaseDbObject):
         ssp_y_mean = (ssp_y_min + ssp_y_max) / 2
         ssp_y_delta = max(0.05, abs(ssp_y_max - ssp_y_min)/5)
         log.info("data boundary: %.4f, %.4f (%.4f) / %.4f, %.4f (%.4f)"
-                        % (ssp_x_min, ssp_x_max, ssp_x_delta, ssp_y_min, ssp_y_max, ssp_y_delta))
+                 % (ssp_x_min, ssp_x_max, ssp_x_delta, ssp_y_min, ssp_y_max, ssp_y_delta))
 
         # make the world map
         fig = plt.figure()
