@@ -12,7 +12,7 @@ __version__ = '2.1.0'
 __doc__ = "SSP"
 __author__ = 'gmasetti@ccom.unh.edu; brc@ccom.unh.edu'
 __license__ = 'BSD license'
-__copyright__ = 'Copyright 2015 University of New Hampshire, Center for Coastal and Ocean Mapping'
+__copyright__ = 'Copyright 2016 University of New Hampshire, Center for Coastal and Ocean Mapping'
 
 
 # def hyo():
