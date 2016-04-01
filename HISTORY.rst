@@ -1,6 +1,12 @@
 History
 =======
 
+2.1
+---
+
+- Updated license
+
+
 2.0.1
 -----
 

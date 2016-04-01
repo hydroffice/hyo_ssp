@@ -15,5 +15,5 @@ Other info
 ----------
 
 * Bitbucket: `https://bitbucket.org/ccomjhc/hyo_ssp <https://bitbucket.org/ccomjhc/hyo_ssp>`_
-* Project page: `http://ccom.unh.edu/project/hydroffice <http://ccom.unh.edu/project/hydroffice>`_
-* License: `BSD license <https://bitbucket.org/ccomjhc/hyo_ssp/raw/tip/LICENSE>`_
+* Project page: `http://www.hydroffice.org <http://www.hydroffice.org>`_
+* License: LGPLv3 license (See `LICENSE <https://bitbucket.org/ccomjhc/hyo_bag/raw/tip/LICENSE>`_)
