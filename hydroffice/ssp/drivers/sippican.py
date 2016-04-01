@@ -280,7 +280,13 @@ class Sippican(BaseFormat):
                         self.temperature[count] = float(fields[self.data_index["Temperature"]])
 
                     elif self.sensor_type == Dicts.sensor_types["XSV"]:
-                        raise FormatError("No sample data file seen for XSV in this format, please send us this file!")
+                        #skip 0-speed value
+                        if float(fields[self.data_index["Sound"]]) == 0.0:
+                            self.print_info("skipping 0-speed row")
+                            continue
+
+                        self.depth[count] = float(fields[self.data_index["Depth"]])
+                        self.speed[count] = float(fields[self.data_index["Sound"]])
 
                     elif self.sensor_type == Dicts.sensor_types["XCTD"]:
 
