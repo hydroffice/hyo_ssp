@@ -11,6 +11,9 @@ research-2-operation.
 This package provides functionalities to deal with sound speed profiles.
 
 
+.. note:: The library is currently in maintenance-only mode. The development is ongoing on hydroffice.soundspeed.
+
+
 Other info
 ----------
 
