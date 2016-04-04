@@ -5,7 +5,7 @@ History
 ---
 
 - Updated license
-
+- Added support for Valeport SVX2 1000
 
 2.0.1
 -----
