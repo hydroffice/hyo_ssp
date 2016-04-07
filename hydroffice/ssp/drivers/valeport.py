@@ -18,6 +18,7 @@ class Valeport(BaseFormat):
         Dicts.probe_types['MONITOR SVP 500']: Dicts.sensor_types["SVPT"],
         Dicts.probe_types['MIDAS SVP 6000']: Dicts.sensor_types["SVPT"],
         Dicts.probe_types['MIDAS SVX2 1000']: Dicts.sensor_types["SVPT"],
+        Dicts.probe_types['MIDAS SVX2 3000']: Dicts.sensor_types["SVPT"],
         Dicts.probe_types['MiniSVP']: Dicts.sensor_types["SVPT"],
         Dicts.probe_types['Unknown']: Dicts.sensor_types["Unknown"]
     }
@@ -208,7 +209,8 @@ class Valeport(BaseFormat):
                 if (self.probe_type == Dicts.probe_types["MIDAS SVP 6000"]) \
                         or (self.probe_type == Dicts.probe_types["MONITOR SVP 500"]):
                     s_date, s_time, self.speed[count], self.depth[count], self.temperature[count] = line.split()
-                elif self.probe_type == Dicts.probe_types["MIDAS SVX2 1000"]:
+                elif (self.probe_type == Dicts.probe_types["MIDAS SVX2 1000"])  \
+                        or (self.probe_type == Dicts.probe_types["MIDAS SVX2 3000"]):
                     s_date, s_time, self.speed[count], self.depth[count], self.temperature[count], \
                     s_cond, self.salinity[count], s_psu, s_sos = line.split()
 

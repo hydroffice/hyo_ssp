@@ -14,6 +14,10 @@ class UdpIO(BaseIo):
 
     __metaclass__ = ABCMeta
 
+    @classmethod
+    def replace_non_ascii_byte(cls, txt):
+        return ''.join([i if ord(i) < 128 else ',' for i in txt])
+
     def __init__(self, listen_port, desired_datagrams, timeout):
         super(UdpIO, self).__init__()
         self.listen_port = listen_port
@@ -82,7 +86,11 @@ class UdpIO(BaseIo):
         except socket.error as e:
             self.listening = False
             self.sock_in.close()
-            log.info("port %d already bound? Not listening anymore. Error: %s" % (self.listen_port, e))
+            try:
+                log.warning("port %d already bound? Not listening anymore. Error: %s" % (self.listen_port, e))
+            except UnicodeDecodeError:
+                log.warning("port %d already bound? Not listening anymore." % self.listen_port)
+                log.warning("issue: %s" % self.replace_non_ascii_byte(e))
             return
 
         log.info("going to listen on port %s for datagrams %s" % (self.listen_port, self.desired_datagrams))

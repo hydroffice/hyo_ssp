@@ -253,10 +253,13 @@ class Project(project.Project):
         elif (input_format == Dicts.import_formats["VALEPORT_MIDAS"]) \
                 or (input_format == Dicts.import_formats["VALEPORT_MONITOR"]) \
                 or (input_format == Dicts.import_formats["VALEPORT_MINI_SVP"]):
-            if self.ssp_data.source_info == "MIDAS SVP 6000" or self.ssp_data.source_info == "MIDAS SVX2 1000"\
+            if self.ssp_data.source_info == "MIDAS SVP 6000" \
+                    or self.ssp_data.source_info == "MIDAS SVX2 1000" \
+                    or self.ssp_data.source_info == "MIDAS SVX2 3000" \
                     or self.ssp_data.source_info == "MONITOR SVP 500":
                 self.ssp_data.calc_depth()
-            if "MIDAS SVX2 1000" not in self.ssp_data.source_info:  # svx2 already has salinity
+            if ("MIDAS SVX2 1000" not in self.ssp_data.source_info) \
+                    and ("MIDAS SVX2 3000" not in self.ssp_data.source_info):  # svx2 already has salinity
                 self.ssp_data.calc_salinity()
 
         self.has_ssp_loaded = True
