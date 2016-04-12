@@ -27,7 +27,6 @@ class Woa09(Atlas):
         self.temperature_monthly = None
         self.temperature_seasonal = None
 
-        self.salinity_annual = None
         self.salinity_monthly = None
         self.salinity_seasonal = None
 
@@ -54,7 +53,6 @@ class Woa09(Atlas):
             self.temperature_annual = netCDF4.Dataset(self.woa_path + "/temperature_annual_1deg.nc")
             self.temperature_monthly = netCDF4.Dataset(self.woa_path + "/temperature_monthly_1deg.nc")
             self.temperature_seasonal = netCDF4.Dataset(self.woa_path + "/temperature_seasonal_1deg.nc")
-            self.salinity_annual = netCDF4.Dataset(self.woa_path + "/salinity_annual_1deg.nc")
             self.salinity_monthly = netCDF4.Dataset(self.woa_path + "/salinity_monthly_1deg.nc")
             self.salinity_seasonal = netCDF4.Dataset(self.woa_path + "/salinity_seasonal_1deg.nc")
             self.landsea = np.genfromtxt(self.woa_path + "/landsea.msk").reshape((180, 360))

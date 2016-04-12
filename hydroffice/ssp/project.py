@@ -201,6 +201,7 @@ class Project(project.Project):
 
         elif input_format == Dicts.import_formats["SAIV"]:
             ssp.read_input_file_by_format(filename, input_format)
+            ssp.reduce_up_down(self.s.ssp_up_or_down)
 
         elif input_format == Dicts.import_formats["SEABIRD"]:
             ssp.read_input_file_by_format(filename, input_format)

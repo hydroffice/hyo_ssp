@@ -50,8 +50,8 @@ class Woa09Checker(object):
                 os.makedirs(self.atlases_folder)
 
             ftp = FtpConnector("ftp.ccom.unh.edu", show_progress=True, debug_mode=False)
-            data_zip_src = "fromccom/hydroffice/woa09.zip"
-            data_zip_dst = os.path.join(self.atlases_folder, "woa09.zip")
+            data_zip_src = "fromccom/hydroffice/woa09.red.zip"
+            data_zip_dst = os.path.join(self.atlases_folder, "woa09.red.zip")
             ftp.get_file(data_zip_src, data_zip_dst, unzip_it=True)
             return self.is_present()
 
