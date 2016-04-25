@@ -75,6 +75,7 @@ class UdpIO(BaseIo):
     def listen(self):
 
         self.sock_in = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock_in.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock_in.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 2 ** 16)
 
         if self.timeout > 0:

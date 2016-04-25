@@ -53,9 +53,7 @@ class SspAux(object):
 
     @classmethod
     def thin_ssp(cls, tolerance, data):
-        # - 1000 points for: EM2040, EM710, EM302 and EM122;
-        # - 570 points for: EM3000, EM3002, EM1002, EM300, EM120
-        # TODO: the resulting profile must be less than 30kB
+
 
         # pre-purge data from all the flagged samples
         data = cls.purge_flagged_samples(data)
