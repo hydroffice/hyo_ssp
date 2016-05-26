@@ -51,7 +51,10 @@ class Turo(BaseFormat):
         log.info("reading > body")
 
         self.depth = self.file_content.variables['depth'][:]
-        self.speed = self.file_content.variables['soundSpeed'][0, :, 0, 0]
+        try:
+            self.speed = self.file_content.variables['soundSpeed'][0, :, 0, 0]
+        except KeyError:
+            self.speed = self.file_content.variables['derivedSoundSpeed'][0, :, 0, 0]
         self.temperature = self.file_content.variables['temperature'][0, :, 0, 0]
         self.num_samples = self.depth.size
         self.salinity = np.zeros(self.num_samples)
