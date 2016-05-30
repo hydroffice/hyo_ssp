@@ -193,6 +193,13 @@ class SspData(object):
         # purge points that were flagged
         self.data = SspAux.purge_flagged_samples(self.data)
 
+        # flip the data array in the up/down direction
+        if up_or_down_cast == Dicts.ssp_directions["up"]:
+            log.info("data shape: %s" % (self.data.shape,))
+            flipped_view = np.fliplr(self.data)
+            self.data = flipped_view[:]
+            log.info("data shape: %s" % (self.data.shape,))
+
     def extend(self, extender, ext_type):
         """ Use the extender samples to extend the profile """
         log.info("extension source type: %s" % ext_type)

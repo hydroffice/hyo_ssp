@@ -29,7 +29,7 @@ class Seabird(BaseFormat):
         self.longitude_2_token = '** Lon:'
         self.field_name_token = '# name'
         self.depth_token = 'depSM'
-        self.speed_token = 'svCM'
+        self.speed_token = ''
         self.temp_token = ''
         self.sal_token = ''
 
@@ -148,8 +148,9 @@ class Seabird(BaseFormat):
                         got_depth = True
                         self.depth_is_pressure = True
                         self.depth_token = field_type
-                elif field_type == self.speed_token:
+                elif (field_type == 'svCM') or (field_type == 'svDM'):
                     got_speed = True
+                    self.speed_token = field_type
                 elif field_type == "t090C" or field_type == "tv290C":
                     got_temperature = True
                     self.temp_token = field_type
@@ -204,25 +205,52 @@ class Seabird(BaseFormat):
 
     def _read_body(self, lines):
         log.info("reading > body")
-        log.debug("data index: %s" % self.data_index)
+        # log.debug("data index: %s" % self.data_index)
 
         count = 0
         for line in lines[self.samples_offset:len(lines)]:
             try:
                 # In case an incomplete file comes through
                 data = line.split()
-                self.depth[count] = float(data[self.data_index[self.depth_token]])
+
+                # data retrieval
+                depth_value = float(data[self.data_index[self.depth_token]])
+                temp_value = float(data[self.data_index[self.temp_token]])
                 if not self.missing_sound_speed:
-                    self.speed[count] = float(data[self.data_index[self.speed_token]])
-                self.temperature[count] = float(data[self.data_index[self.temp_token]])
+                    speed_value = float(data[self.data_index[self.speed_token]])
                 if self.salinity_is_conductivity:
-                    self.salinity[count] = float(data[self.data_index[self.sal_token]]) * 10  # from S/m to mmho/cm
+                    sal_value = float(data[self.data_index[self.sal_token]]) * 10  # from S/m to mmho/cm
                 else:
-                    self.salinity[count] = float(data[self.data_index[self.sal_token]])
+                    sal_value = float(data[self.data_index[self.sal_token]])
+
+                # filter to skip anomalous data
+                if not self.missing_sound_speed:
+                    if (speed_value < 1000) or (speed_value > 2000):
+                        log.error("skipping for anomalous speed value: %s" % speed_value)
+                        continue
+                if (temp_value < -10) or (temp_value > 100):
+                    log.error("skipping for anomalous temp value: %s" % temp_value)
+                    continue
+                if self.salinity_is_conductivity:
+                    if sal_value < 0:
+                        log.error("skipping for anomalous conductivity value: %s" % sal_value)
+                        continue
+                else:
+                    if sal_value < 0:
+                        log.error("skipping for anomalous sal value: %s" % sal_value)
+                        continue
+
+                # data storing
+                self.depth[count] = depth_value
+                if not self.missing_sound_speed:
+                    self.speed[count] = speed_value
+                self.temperature[count] = temp_value
+                self.salinity[count] = sal_value
 
             except ValueError:
                 log.error("failure at sample %s" % count)
                 continue
+
             count += 1
 
         log.info("parsed %s samples" % count)
