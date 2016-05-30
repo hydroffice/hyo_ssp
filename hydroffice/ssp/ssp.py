@@ -41,6 +41,10 @@ class SspData(object):
         self.source_info = ""
         self.driver = "UNKNOWN"
 
+        self.depth_is_pressure = False
+        self.salinity_is_conductivity = False
+        self.missing_sound_speed = False
+
         self.data = None
         self.raw_data = None
         self.sis_data = None
@@ -353,6 +357,25 @@ class SspData(object):
                                                                             self.data[Dicts.idx['temperature'], count],
                                                                             latitude)
         self.modify_source_info("calc. salinity")
+
+    def convert_salinity(self):  # from conductivity
+        if not self.latitude:
+            latitude = 30.0
+        else:
+            latitude = self.latitude
+
+        c2s = oceanography.conductivity2salinity
+        d2p = oceanography.depth2press
+        for count in range(self.data.shape[1]):
+            # print("%s %s %s" % (self.data[Dicts.idx['salinity'], count], self.data[Dicts.idx['depth'], count],
+            #                     self.data[Dicts.idx['temperature'], count]))
+            try:
+                self.data[Dicts.idx['salinity'], count] = c2s(self.data[Dicts.idx['salinity'], count],
+                                                              d2p(self.data[Dicts.idx['depth'], count], latitude),
+                                                              self.data[Dicts.idx['temperature'], count])
+            except ValueError as e:
+                log.debug("Skipping conversion from conductivity to salinity: %s" % e)
+        self.modify_source_info("conv. salinity")
 
     def calc_speed(self):
         if not self.latitude:

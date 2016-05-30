@@ -24,9 +24,6 @@ class BaseFormat(object):
 
     __metaclass__ = ABCMeta
 
-    # A dictionary to store data type column indices
-    data_index = {}
-
     def __init__(self, file_content):
         super(BaseFormat, self).__init__()
         self.name = "FMT"
@@ -49,6 +46,13 @@ class BaseFormat(object):
         self.speed = None
         self.temperature = None
         self.salinity = None
+
+        self.depth_is_pressure = False
+        self.salinity_is_conductivity = False
+        self.missing_sound_speed = False
+
+        # A dictionary to store data type column indices
+        self.data_index = dict()
 
     @classmethod
     def replace_non_ascii_byte(cls, txt):
@@ -78,6 +82,10 @@ class BaseFormat(object):
         ssp.sensor_type = self.sensor_type
         ssp.driver = self.driver
         ssp.original_path = self.original_path
+
+        ssp.depth_is_pressure = self.depth_is_pressure
+        ssp.salinity_is_conductivity = self.salinity_is_conductivity
+        ssp.missing_sound_speed = self.missing_sound_speed
 
         return ssp
 

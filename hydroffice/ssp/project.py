@@ -251,6 +251,17 @@ class Project(project.Project):
         elif input_format == Dicts.import_formats["SAIV"]:
             self.ssp_data.calc_depth()
 
+        elif input_format == Dicts.import_formats["SEABIRD"]:
+            if self.ssp_data.depth_is_pressure:
+                log.debug("seabird -> depth is pressure: %s" % self.ssp_data.depth_is_pressure)
+                self.ssp_data.calc_depth()
+            if self.ssp_data.salinity_is_conductivity:
+                log.debug("seabird -> salinity is conductivity: %s" % self.ssp_data.salinity_is_conductivity)
+                self.ssp_data.convert_salinity()
+            if self.ssp_data.missing_sound_speed:
+                log.debug("seabird -> missing sound speed: %s" % self.ssp_data.missing_sound_speed)
+                self.ssp_data.calc_speed()
+
         elif (input_format == Dicts.import_formats["VALEPORT_MIDAS"]) \
                 or (input_format == Dicts.import_formats["VALEPORT_MONITOR"]) \
                 or (input_format == Dicts.import_formats["VALEPORT_MINI_SVP"]):

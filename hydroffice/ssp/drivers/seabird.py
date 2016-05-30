@@ -25,11 +25,13 @@ class Seabird(BaseFormat):
         self.filename_token = '* FileName'
         self.latitude_token = '* NMEA Latitude ='
         self.longitude_token = '* NMEA Longitude ='
+        self.latitude_2_token = '** Lat:'
+        self.longitude_2_token = '** Lon:'
         self.field_name_token = '# name'
         self.depth_token = 'depSM'
         self.speed_token = 'svCM'
         self.temp_token = ''
-        self.sal_token = 'sal00'
+        self.sal_token = ''
 
         log.info("reading ...")
         lines = self.file_content.splitlines()
@@ -88,7 +90,7 @@ class Seabird(BaseFormat):
                     deg = float(line.split()[-3])
                     min_deg = float(line.split()[-2])
                     hemisphere = line.split()[-1]
-                    latitude = deg + min_deg/60.0
+                    latitude = deg + min_deg / 60.0
                     if hemisphere == "S":
                         latitude *= -1
                 except ValueError:
@@ -99,38 +101,81 @@ class Seabird(BaseFormat):
                     deg = float(line.split()[-3])
                     min_deg = float(line.split()[-2])
                     hemisphere = line.split()[-1]
-                    longitude = deg + min_deg/60.0
+                    longitude = deg + min_deg / 60.0
                     if hemisphere == "W":
                         longitude *= -1
                 except ValueError:
                     log.error("failure in reading longitude token: %s" % line)
 
+            elif line[:len(self.latitude_2_token)] == self.latitude_2_token:
+                try:
+                    values = line.split()[-2]
+                    deg = float(values.split(';')[-3])
+                    min_deg = float(values.split(';')[-2])
+                    sec_deg = float(values.split(';')[-1])
+                    hemisphere = line.split()[-1]
+                    latitude = deg + min_deg / 60.0 + sec_deg / 3600.0
+                    if hemisphere == "S":
+                        latitude *= -1
+                    # log.debug("lat: %s from %s" % (latitude, line))
+                except ValueError as e:
+                    log.error("failure in reading latitude token: %s\n%s" % (line, e))
+
+            elif line[:len(self.longitude_2_token)] == self.longitude_2_token:
+                try:
+                    values = line.split()[-2]
+                    deg = float(values.split(';')[-3])
+                    min_deg = float(values.split(';')[-2])
+                    sec_deg = float(values.split(';')[-1])
+                    hemisphere = line.split()[-1]
+                    longitude = deg + min_deg / 60.0 + sec_deg / 3600.0
+                    if hemisphere == "W":
+                        longitude *= -1
+                    # log.debug("long: %s from %s" % (longitude, line))
+                except ValueError:
+                    log.error("failure in reading longitude token: %s\n%s" % (line, e))
+
             elif line[:len(self.field_name_token)] == self.field_name_token:
                 column = line.split()[2]
                 field_type = line.split()[4].split(":")[0]
                 self.data_index[field_type] = int(column)
-                if field_type == self.depth_token:
+                if field_type == 'depSM':
                     got_depth = True
+                    self.depth_is_pressure = False
+                    self.depth_token = field_type
+                elif field_type == 'prdM':
+                    if not got_depth:  # we prefer depSM if available
+                        got_depth = True
+                        self.depth_is_pressure = True
+                        self.depth_token = field_type
                 elif field_type == self.speed_token:
                     got_speed = True
                 elif field_type == "t090C" or field_type == "tv290C":
                     got_temperature = True
                     self.temp_token = field_type
-                elif field_type == self.sal_token:
+                elif field_type == 'sal00':
+                    self.salinity_is_conductivity = False
                     got_salinity = True
+                    self.sal_token = field_type
+                elif field_type == 'c0S/m':
+                    if not got_salinity:  # we prefer sal00 if available
+                        self.salinity_is_conductivity = True
+                        got_salinity = True
+                        self.sal_token = field_type
 
             self.samples_offset += 1
 
-        if not got_depth or not got_speed or not got_temperature or not got_salinity:
+        if not got_depth or not got_temperature or not got_salinity:
             if not got_depth:
                 log.error("Missing depth field (need depth 'depSM' field)")
-            if not got_speed:
-                log.error("Missing speed field (need speed 'svCM' field)")
             if not got_temperature:
                 log.error("Missing temperature field (need temperature 't090C' or 'tv290C' field)")
             if not got_salinity:
                 log.error("Missing salinity field (need salinity 'sal00' field)")
             return
+
+        if not got_speed:
+            self.missing_sound_speed = True
 
         self.original_path = filename
         self.latitude = latitude
@@ -150,6 +195,7 @@ class Seabird(BaseFormat):
         self.probe_type = Dicts.probe_types['SBE']
 
         self.num_samples = len(lines) - self.samples_offset
+        log.debug("number of samples: %s" % self.num_samples)
 
         self.depth = np.zeros(self.num_samples)
         self.speed = np.zeros(self.num_samples)
@@ -158,6 +204,7 @@ class Seabird(BaseFormat):
 
     def _read_body(self, lines):
         log.info("reading > body")
+        log.debug("data index: %s" % self.data_index)
 
         count = 0
         for line in lines[self.samples_offset:len(lines)]:
@@ -165,9 +212,13 @@ class Seabird(BaseFormat):
                 # In case an incomplete file comes through
                 data = line.split()
                 self.depth[count] = float(data[self.data_index[self.depth_token]])
-                self.speed[count] = float(data[self.data_index[self.speed_token]])
+                if not self.missing_sound_speed:
+                    self.speed[count] = float(data[self.data_index[self.speed_token]])
                 self.temperature[count] = float(data[self.data_index[self.temp_token]])
-                self.salinity[count] = float(data[self.data_index[self.sal_token]])
+                if self.salinity_is_conductivity:
+                    self.salinity[count] = float(data[self.data_index[self.sal_token]]) * 10  # from S/m to mmho/cm
+                else:
+                    self.salinity[count] = float(data[self.data_index[self.sal_token]])
 
             except ValueError:
                 log.error("failure at sample %s" % count)

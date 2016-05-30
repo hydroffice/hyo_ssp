@@ -8,7 +8,7 @@ import logging
 log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
 
-__version__ = '2.1.3'
+__version__ = '2.1.4'
 __doc__ = "SSP"
 __author__ = 'gmasetti@ccom.unh.edu; brc@ccom.unh.edu'
 __license__ = 'LGPLv3 license'
