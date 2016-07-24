@@ -270,6 +270,9 @@ class Project(project.Project):
                     or self.ssp_data.source_info == "MIDAS SVX2 3000" \
                     or self.ssp_data.source_info == "MONITOR SVP 500":
                 self.ssp_data.calc_depth()
+            if self.ssp_data.source_info == "MiniSVP" or self.ssp_data.source_info == "RapidSVT":
+                if self.ssp_data.depth_is_pressure:
+                    self.ssp_data.calc_depth()
             if ("MIDAS SVX2 1000" not in self.ssp_data.source_info) \
                     and ("MIDAS SVX2 3000" not in self.ssp_data.source_info):  # svx2 already has salinity
                 self.ssp_data.calc_salinity()

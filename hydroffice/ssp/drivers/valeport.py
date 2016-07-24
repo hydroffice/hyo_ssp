@@ -20,6 +20,7 @@ class Valeport(BaseFormat):
         Dicts.probe_types['MIDAS SVX2 1000']: Dicts.sensor_types["SVPT"],
         Dicts.probe_types['MIDAS SVX2 3000']: Dicts.sensor_types["SVPT"],
         Dicts.probe_types['MiniSVP']: Dicts.sensor_types["SVPT"],
+        Dicts.probe_types['RapidSVT']: Dicts.sensor_types["SVPT"],
         Dicts.probe_types['Unknown']: Dicts.sensor_types["Unknown"]
     }
 
@@ -42,7 +43,7 @@ class Valeport(BaseFormat):
     def _read_header(self, lines):
         log.info("reading > header")
 
-        if self.file_content[:3] == 'Now':  # MiniSVP
+        if self.file_content[:3] == 'Now':  # MiniSVP and RapidSVT
             self.driver = self.name + ".MiniSVP" + (".%s" % __version__)
             self.parse_mini_svp_header(lines)
         else:  # MIDAS or Monitor
@@ -52,11 +53,13 @@ class Valeport(BaseFormat):
     def parse_mini_svp_header(self, lines):
         self.start_data_token = 'Pressure units:'
         self.time_token = 'Now'
-        self.probe_type_token = 'MiniSVP:'
 
         self.samples_offset = 0
         for line in lines:
             if line[:len(self.start_data_token)] == self.start_data_token:
+                if line.split()[-1] == "dBar":
+                    self.depth_is_pressure = True
+                    log.info("depth is pressure: %s" % self.depth_is_pressure)
                 self.samples_offset += 1
                 break
 
@@ -85,8 +88,16 @@ class Valeport(BaseFormat):
                 except ValueError:
                     log.error("unable to parse latitude: %s" % line)
 
-            elif line[:len(self.probe_type_token)] == self.probe_type_token:
+            elif line[:len('MiniSVP:')] == 'MiniSVP:':
                 self.probe_type = Dicts.probe_types['MiniSVP']
+                try:
+                    self.sensor_type = self.sensor_index[self.probe_type]
+                    log.info("probe type: %s" % self.sensor_type)
+                except KeyError:
+                    log.error("unable to recognize probe type: %s" % line)
+                    self.sensor_type = Dicts.sensor_types['Unknown']
+            elif line[:len('RapidSVT:')] == 'RapidSVT:':
+                self.probe_type = Dicts.probe_types['RapidSVT']
                 try:
                     self.sensor_type = self.sensor_index[self.probe_type]
                     log.info("probe type: %s" % self.sensor_type)
@@ -165,7 +176,7 @@ class Valeport(BaseFormat):
 
     def _read_body(self, lines):
         log.info("reading > body")
-        if self.file_content[:3] == 'Now':  # MiniSVP
+        if self.file_content[:3] == 'Now':  # MiniSVP/RapidSVT
             self.parse_mini_svp_body(lines)
         else:  # MIDAS or Monitor
             self.parse_midas_body(lines)
