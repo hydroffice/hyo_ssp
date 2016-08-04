@@ -199,6 +199,10 @@ class Project(project.Project):
         elif input_format == Dicts.import_formats["IDRONAUT"]:
             ssp.read_input_file_by_format(filename, input_format)
 
+        elif input_format == Dicts.import_formats["LEIDOS"]:
+            ssp.read_input_file_by_format(filename, input_format)
+            ssp.reduce_up_down(self.s.ssp_up_or_down)
+
         elif input_format == Dicts.import_formats["SAIV"]:
             ssp.read_input_file_by_format(filename, input_format)
             ssp.reduce_up_down(self.s.ssp_up_or_down)

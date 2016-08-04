@@ -30,7 +30,8 @@ class Dicts(object):
         'UNB': 8,
         'VALEPORT_MIDAS': 9,
         'VALEPORT_MONITOR': 10,
-        'VALEPORT_MINI_SVP': 11
+        'VALEPORT_MINI_SVP': 11,
+        'LEIDOS': 12
     }
 
     import_extensions = {
@@ -45,7 +46,8 @@ class Dicts(object):
         8: "unb",
         9: "000",
         10: "000",
-        11: "txt"
+        11: "txt",
+        12: "v14,svp"
     }
 
     probe_types = {
@@ -75,6 +77,7 @@ class Dicts(object):
         'MiniSVP': 24,
         'MVP': 25,
         'RapidSVT': 26,
+        'Leidos': 27,
     }
 
     sensor_types = {

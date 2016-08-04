@@ -23,6 +23,7 @@ from .drivers.digibar import DigibarPro, DigibarS
 from .drivers.castaway import Castaway
 from .drivers.unb import Unb
 from .drivers.idronaut import Idronaut
+from .drivers.leidos import Leidos
 from .drivers.saiv import Saiv
 from .helper import SspError
 
@@ -76,6 +77,8 @@ class SspData(object):
             ss_data = Idronaut(file_content)
         elif input_format == Dicts.import_formats["SIPPICAN"]:
             ss_data = Sippican(file_content)
+        elif input_format == Dicts.import_formats["LEIDOS"]:
+            ss_data = Leidos(file_content)
         elif input_format == Dicts.import_formats["SAIV"]:
             ss_data = Saiv(file_content)
         elif input_format == Dicts.import_formats["SEABIRD"]:
