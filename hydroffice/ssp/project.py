@@ -251,6 +251,9 @@ class Project(project.Project):
                 or (input_format == Dicts.import_formats["DIGIBAR_S"]) \
                 or (input_format == Dicts.import_formats["TURO"]):
             self.ssp_data.calc_salinity()
+            if self.ssp_data.missing_sound_speed:
+                log.debug("missing sound speed: %s" % self.ssp_data.missing_sound_speed)
+                self.ssp_data.calc_speed()
 
         elif input_format == Dicts.import_formats["SAIV"]:
             self.ssp_data.calc_depth()
